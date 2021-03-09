@@ -2,9 +2,6 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
-library bsc;
-use bsc.diversity_types_pkg.all;
-use bsc.diversity_components_pkg.all;
 
 entity mem_regs_sign is
     generic (
@@ -62,10 +59,10 @@ begin
            
     
     process(memory_regs)
-        variable temp : std_logic_vector(regs_number*coding_bits-1 downto 0) := (others => '0');
+        variable temp : std_logic_vector(regs_number*coding_bits-1 downto 0);
     begin
-        for i in regs_number to 1 loop
-            temp(i*coding_bits-1 downto (i-1)*coding_bits) := memory_regs(i);
+        for i in regs_number downto 1 loop
+            temp(i*coding_bits-1 downto (i-1)*coding_bits) := memory_regs(i-1);
         end loop;
         reg_signature <= temp;
     end process;

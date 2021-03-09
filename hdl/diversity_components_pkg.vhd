@@ -8,8 +8,10 @@ package diversity_components_pkg is
 
     component diversity_quantifier_top is
         generic (
-            lanes : integer := 2;        
-            write_ports : integer := 2 
+            coding_method : integer := 1;
+            coding_bits   : integer := 1;
+            regs_number   : integer := 32;
+            saved_inst    : integer := 32
         );
         port (
             rstn           : in  std_ulogic;
@@ -45,7 +47,8 @@ package diversity_components_pkg is
              -- Registers signatures
              registers_i : in register_type;
              reg_signature_o    : out std_logic_vector(coding_bits*regs_number-1 downto 0);
-             reg_instructions_o : out std_logic_vector(integer(floor(log2(real(((2 ** coding_bits)-1)*saved_inst)))) downto 0) -- max value is maximum value per register * number of registers
+             inst_signature_sum_o   : out std_logic_vector(integer(floor(log2(real(((2 ** coding_bits)-1)*saved_inst*2)))) downto 0); -- max value is maximum value per register * number of saved insts
+             inst_signature_conc_o : out std_logic_vector(coding_bits*saved_inst*2-1 downto 0)
           );
     end component signature_calculator;
 
@@ -55,8 +58,8 @@ package diversity_components_pkg is
             coding_bits : integer := 1
         );
         port (
-            rstn           : in  std_ulogic;
-            clk            : in  std_ulogic;
+            rstn    : in  std_ulogic;
+            clk     : in  std_ulogic;
             -- Port 1
             we_1    : in std_logic;
             wdata_1 : in std_logic_vector(coding_bits-1 downto 0);
@@ -69,6 +72,20 @@ package diversity_components_pkg is
             reg_signature : out std_logic_vector(regs_number*coding_bits-1 downto 0)
          );
     end component mem_regs_sign;  
+
+    component fifo_instructions is
+        generic (
+            saved_inst : integer := 32;
+            coding_bits : integer := 1
+        );
+        port (
+            rstn       : in std_ulogic;
+            clk        : in std_ulogic;
+            fifo_input : in std_logic_vector(coding_bits*2-1 downto 0);
+            inst_signature_sum  : out std_logic_vector(integer(floor(log2(real(((2 ** coding_bits)-1)*saved_inst*2)))) downto 0); -- max value is maximum value per register * number of registers;
+            inst_signature_conc : out std_logic_vector(coding_bits*saved_inst*2-1 downto 0)
+            );
+    end component fifo_instructions;
 
 
 
