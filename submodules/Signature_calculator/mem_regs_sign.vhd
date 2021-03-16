@@ -11,6 +11,7 @@ entity mem_regs_sign is
     port (
         rstn    : in  std_ulogic;
         clk     : in  std_ulogic;
+        enable  : in std_logic;
         -- Port 1
         we_1    : in std_logic;   
         wdata_1 : in std_logic_vector(coding_bits-1 downto 0); 
@@ -39,7 +40,9 @@ begin
             if rstn = '0' then
                 memory_regs <= (others => (others => '0'));
             else
-                memory_regs <= memory_regs_n;
+                if enable = '1' then
+                    memory_regs <= memory_regs_n;
+                end if;
             end if;
         end if;
     end process;

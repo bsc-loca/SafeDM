@@ -8,22 +8,26 @@ use bsc.diversity_components_pkg.all;
 
 entity signature_calculator is
     generic (
-        coding_method : integer := 1;
-        coding_bits   : integer := 1;
-        regs_number   : integer := 32;
-        saved_inst    : integer := 32
+        coding_method      : integer := 1;
+        coding_bits        : integer := 1;
+        regs_number        : integer := 32;
+        saved_inst         : integer := 32;
+        REG_SIG_BITS       : integer := 32;
+        INST_SUM_SIG_BITS  : integer := 6;
+        INST_CONC_SIG_BITS : integer := 64
     );
     port (
-        rstn           : in  std_ulogic;
-        clk            : in  std_ulogic;
+        rstn   : in std_ulogic;
+        clk    : in std_ulogic;
+        enable : in std_logic;
         -- Instructions signature
         instructions_i : in instruction_type;
         -- Registers signatures
         registers_i : in register_type;
         -- Signatures
-        reg_signature_o       : out std_logic_vector(coding_bits*regs_number-1 downto 0);
-        inst_signature_sum_o  : out std_logic_vector(integer(floor(log2(real(((2 ** coding_bits)-1)*saved_inst*2)))) downto 0); -- max value is maximum value per register * number of registers
-        inst_signature_conc_o : out std_logic_vector(coding_bits*saved_inst*2-1 downto 0)
+        reg_signature_o       : out std_logic_vector(REG_SIG_BITS-1 downto 0);
+        inst_signature_sum_o  : out std_logic_vector(INST_SUM_SIG_BITS-1 downto 0);
+        inst_signature_conc_o : out std_logic_vector(INST_CONC_SIG_BITS-1 downto 0)
      );
 end;
 
@@ -64,12 +68,13 @@ begin
 
     mem_regs_sign_inst : mem_regs_sign
         generic map(
-            regs_number => 32,
-            coding_bits => 1
+            regs_number  => regs_number,
+            coding_bits  => coding_bits
             )
         port map(
             rstn     => rstn,
             clk      => clk,
+            enable   => enable,
             -- Port 1
             we_1     => registers_i.we(0),  
             wdata_1  => reg_coding_port1,
@@ -116,20 +121,19 @@ begin
 
     fifo_instructions_inst : fifo_instructions
         generic map(
-            saved_inst  => 32,
-            coding_bits => 1
+            saved_inst  => saved_inst,
+            coding_bits => coding_bits,
+            INST_SUM_SIG_BITS  => INST_SUM_SIG_BITS,
+            INST_CONC_SIG_BITS => INST_CONC_SIG_BITS
             )
         port map(
             rstn    => rstn,
             clk     => clk,
+            enable  => enable,
             fifo_input => fifo_input,
             inst_signature_sum  => inst_signature_sum_o,
             inst_signature_conc => inst_signature_conc_o
         );
-
-            
-
-            
 
 
 end;
