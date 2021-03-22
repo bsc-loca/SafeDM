@@ -22,13 +22,15 @@ entity histograms_memory is
         inst_signature_diff_i : in std_logic_vector(INST_SIGNATURE_DIFF_BITS-1 downto 0);     -- differenrence between both instructions signatures 
         reg_signature_diff_i  : in std_logic_vector(REG_SIGNATURE_DIFF_BITS-1 downto 0);      -- differenrence between both registers signatures  
         -- Memory read
-        addr_i    : in std_logic_vector(15 downto 0); --TODO: change it to adapt              -- Address to read the histograms
+        addr_i    : in std_logic_vector(13 downto 0); --TODO: change it to adapt              -- Address to read the histograms
         -- Memory out
         data_o : out std_logic_vector(31 downto 0)                                            -- Data from the memories (histograms)
     );
 end;
 
 architecture rtl of histograms_memory is
+
+
 
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- INSTRUCTIONS DIFFERENCE BETWEEN CORES: INTERVALS DEFINITION (CONSTANTS) ---------------------------------------------------------------------------------------------------
@@ -82,7 +84,7 @@ architecture rtl of histograms_memory is
                 -- To do so, we use the variable rest that contains the difference between diff_max and the section limit
                 for j in 0 to ((inst_sig_diff_section_limits(i+1)-inst_sig_diff_section_limits(i))/inst_sig_diff_section_granularity(i))-1 loop 
                     if rest >= j*inst_sig_diff_section_granularity(i) and rest < (j+1)*inst_sig_diff_section_granularity(i) then
-                        intervals_number := intervals_number + j+1; -- As it starts from 0 we have to add 1
+                        intervals_number := intervals_number + j; -- As it starts from 0 we have to add 1
                     end if;
                 end loop;
             elsif diff_max >= inst_sig_diff_section_limits(i+1) then
@@ -116,10 +118,12 @@ architecture rtl of histograms_memory is
     -- Difference of instructions between both cores
     signal inst_diff : unsigned(15 downto 0);
     -- Difference of instruction interval that has to be incremented
-    signal instructions_interval : unsigned(INSTRUCTION_INTERVAL_BITS-1 downto 0);
+    signal instructions_interval, r_instructions_interval : unsigned(INSTRUCTION_INTERVAL_BITS-1 downto 0);
 
     -- Signal to select the difference of instructions signature interval which correspond to the address of the register of the memory that is incremented
-    signal inst_diff_sig_interval : unsigned(INST_DIFF_SIG_INTERVALS_NUMBER_BITS-1 downto 0);
+    signal inst_diff_sig_interval, r_inst_diff_sig_interval : unsigned(INST_DIFF_SIG_INTERVALS_NUMBER_BITS-1 downto 0);
+    -- Signal to register the difference of registers signature interval which correspond to the address of the register of the memory that is incremented
+    signal r_reg_diff_sig_interval : std_logic_vector(reg_signature_diff_i'LENGTH-1 downto 0);
 
     -- Addresses to increment the proper memory register
     signal inst_sig_mem_addr : unsigned(INST_SIG_MEM_ADDR_BITS-1 downto 0);
@@ -134,9 +138,33 @@ architecture rtl of histograms_memory is
     signal r_addr    : std_logic_vector(addr_i'LENGTH-1 downto 0);
     signal read_addr : std_logic_vector(INST_SIG_MEM_ADDR_BITS-1 downto 0);
     -----------------------------------------------------------------------------------------------
+
+    -- Signal to resgister and delay 1 cycle enable
+    signal r_enable : std_logic;
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 begin
+    ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    -- It is necessary to register the selected intervals to avoid timing issues -------------------------------------------------------------------------------------------------
+    ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    -- Since the signals to calculate the addresses of the memories are delayed one cycle, enable has to be delayed one cycle to avoid wrong readings
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if rstn = '0' then
+                r_instructions_interval  <= (others => '0');
+                r_inst_diff_sig_interval <= (others => '0');
+                r_reg_diff_sig_interval  <= (others => '0');
+                r_enable                 <= '0';
+            else
+                r_instructions_interval  <= instructions_interval;
+                r_inst_diff_sig_interval <= inst_diff_sig_interval;
+                r_reg_diff_sig_interval  <= reg_signature_diff_i;
+                r_enable                 <= enable;
+            end if;
+        end if;
+    end process;
+    ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- HISTOGRAM OF THE INSTRUCTIONS DIFFERENCE BETWEEN BOTH CORES ---------------------------------------------------------------------------------------------------------------
@@ -166,9 +194,9 @@ begin
     port map(
         rstn   => rstn,
         clk    => clk,
-        enable => enable,
+        enable => r_enable,
         read_addr      => read_addr(INSTRUCTION_INTERVAL_BITS-1 downto 0),
-        increment_addr => std_logic_vector(instructions_interval),
+        increment_addr => std_logic_vector(r_instructions_interval),
         data_o         => output_inst_histogram 
         );
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -186,11 +214,11 @@ begin
         inst_sig_diff_integer := to_integer(unsigned(inst_signature_diff_i));
         inst_sig_diff_interval_integer := calculate_inst_diff_intervals(inst_sig_diff_section_limits, inst_sig_diff_section_granularity, inst_sig_diff_integer);
         -- As the function calculates the number of intervals needed for a difference, we have to substract one to the result of the function
-        inst_diff_sig_interval <= to_unsigned(inst_sig_diff_interval_integer-1, inst_diff_sig_interval'LENGTH); 
+        inst_diff_sig_interval <= to_unsigned(inst_sig_diff_interval_integer, inst_diff_sig_interval'LENGTH); 
     end process;
 
     -- The addrs of the interval that has to be incremented is calculated using the interval of instructions difference and the interval of instructions signature difference.
-    inst_sig_mem_addr <= to_unsigned(inst_diff_sig_intervals_number*to_integer(instructions_interval) + to_integer(inst_diff_sig_interval), inst_sig_mem_addr'LENGTH);   
+    inst_sig_mem_addr <= to_unsigned(inst_diff_sig_intervals_number*to_integer(r_instructions_interval) + to_integer(r_inst_diff_sig_interval), inst_sig_mem_addr'LENGTH);   
 
     -- We want to generate as many histograms as instructions difference intervals exists. For each histogram we want to save how many times take place each value of 
     -- instructions signature difference. Therefore we need a memory with instrucionts_difference_intervals*instructions_signature_difference_intervals
@@ -201,7 +229,7 @@ begin
     port map(
         rstn   => rstn,
         clk    => clk,
-        enable => enable, 
+        enable => r_enable, 
         read_addr      => read_addr,
         increment_addr => std_logic_vector(inst_sig_mem_addr),
         data_o         => output_inst_sig_histogram 
@@ -213,7 +241,7 @@ begin
     -- HISTOGRAM OF THE REGISTERS SIGNATURE DIFFERENCE BETWEEN BOTH CORES --------------------------------------------------------------------------------------------------------
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- The addrs of the interval that has to be incremented is calculated using the interval of instructions difference and the interval of registers signature difference.
-    reg_sig_mem_addr <= to_unsigned(reg_diff_sig_intervals_number*to_integer(instructions_interval) + to_integer(unsigned(reg_signature_diff_i)), reg_sig_mem_addr'LENGTH);   
+    reg_sig_mem_addr <= to_unsigned(reg_diff_sig_intervals_number*to_integer(r_instructions_interval) + to_integer(unsigned(r_reg_diff_sig_interval)), reg_sig_mem_addr'LENGTH);   
 
     -- We want to generate as many histograms as instructions difference intervals exists. For each histogram we want to save how many times take place each value of 
     -- registers signature difference. Therefore we need a memory with instrucionts_difference_intervals*registers_signature_difference_intervals
@@ -224,7 +252,7 @@ begin
     port map(
         rstn   => rstn,
         clk    => clk,
-        enable => enable,
+        enable => r_enable,
         read_addr      => read_addr(REG_SIG_MEM_ADDR_BITS-1 downto 0),  
         increment_addr => std_logic_vector(reg_sig_mem_addr), 
         data_o         => output_reg_sig_histogram

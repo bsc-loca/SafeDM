@@ -126,7 +126,7 @@ package diversity_components_pkg is
             inst_signature_diff_i : in std_logic_vector(INST_SIGNATURE_DIFF_BITS-1 downto 0);
             reg_signature_diff_i  : in std_logic_vector(REG_SIGNATURE_DIFF_BITS-1 downto 0); 
             -- Memory read
-            addr_i    : in std_logic_vector(15 downto 0); --TODO: change it to adapt
+            addr_i    : in std_logic_vector(13 downto 0); --TODO: change it to adapt
             -- Memory out
             data_o : out std_logic_vector(31 downto 0)
         );  

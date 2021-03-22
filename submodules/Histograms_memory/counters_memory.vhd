@@ -48,6 +48,11 @@ begin
         if enable = '1' then
             mem_n(to_integer(unsigned(increment_addr))) <= mem(to_integer(unsigned(increment_addr))) + 1;
         end if;
-        data_o <= std_logic_vector(mem(to_integer(unsigned(read_addr))));
+        -- Could happen that read_addr is not a valid index, so we have to check wether it is or not
+        if unsigned(read_addr) < counters_number then
+            data_o <= std_logic_vector(mem(to_integer(unsigned(read_addr))));
+        else
+            data_o <= (others => '0');
+        end if;
     end process;
 end;

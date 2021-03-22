@@ -58,28 +58,28 @@ architecture rtl of diversity_quantifier_top is
     constant MAX_INST_SIGNATURE_DIFF : integer := ((2 ** coding_bits)-1)*saved_inst*2;
     constant MAX_REG_SIGNATURE_DIFF : integer := regs_number;
     constant MAX_REG_SIGNATURE_DIFF_BITS : integer := integer(ceil(log2(real(regs_number+1))));
-    signal reg_signature_diff       : std_logic_vector(MAX_REG_SIGNATURE_DIFF_BITS-1 downto 0);
+    signal reg_signature_diff, r_reg_signature_diff : std_logic_vector(MAX_REG_SIGNATURE_DIFF_BITS-1 downto 0);
     signal inst_signature_conc_diff : std_logic_vector(INST_CONC_SIG_BITS-1 downto 0);
-    signal inst_signature_sum_diff  : unsigned(INST_SUM_SIG_BITS-1  downto 0); -- The bits of the signatures are calculated thinking in the maximum posible difference
+    signal inst_signature_sum_diff, r_inst_signature_sum_diff : unsigned(INST_SUM_SIG_BITS-1  downto 0); -- The bits of the signatures are calculated thinking in the maximum posible difference
     ---------------------------------------------------------------------------------------------------------------------
 
     -- instructions difference between cores
-    signal inst_diff : std_logic_vector(15 downto 0);
+    signal inst_diff, r_inst_diff : std_logic_vector(15 downto 0);
 
     -- Histograms memorie signals
-    signal histogram_read_addr : unsigned(15 downto 0);
+    signal histogram_read_addr : unsigned(13 downto 0);
     signal histogram_mem_out   : std_logic_vector(31 downto 0);
     
     -- Enable signals
     signal cores_enable : std_logic_vector(1 downto 0);
-    signal enable : std_logic;
+    signal enable, r_enable : std_logic;
 
     -- APB bus ----------------------------------------------------------------------------------------------------------
     -- The number or registers can be changed but has to be bigger than 2 for the rest of the design to automatically adapt
     type registers_vector is array (natural range <>) of std_logic_vector(31 downto 0);
     constant REGISTERS_NUMBER : integer := 3;
     signal r, rin      : registers_vector(REGISTERS_NUMBER-1 downto 0) ;
-    signal slave_index : unsigned(15 downto 0);
+    signal slave_index : unsigned(13 downto 0);
 
     -- soft reset through APB bus
     signal soft_rstn : std_ulogic;
@@ -207,16 +207,34 @@ begin
     port map(
         rstn   => internal_rstn, 
         clk    => clk, 
-        enable => enable,
+        enable => r_enable,
         -- Data to be stored
-        inst_diff_i           => inst_diff,
-        inst_signature_diff_i => std_logic_vector(inst_signature_sum_diff),
-        reg_signature_diff_i  => reg_signature_diff,
+        inst_diff_i           => r_inst_diff,
+        inst_signature_diff_i => std_logic_vector(r_inst_signature_sum_diff),
+        reg_signature_diff_i  => r_reg_signature_diff,
         -- Memory read
         addr_i    => std_logic_vector(histogram_read_addr),
         -- Memory out
         data_o => histogram_mem_out
         );
+
+    -- Break the path of the inputs with a register for timing issues
+    process(clk)
+    begin
+        if rising_edge(clk) then 
+            if rstn = '0' then
+                r_inst_diff               <= (others => '0');
+                r_inst_signature_sum_diff <= (others => '0');
+                r_reg_signature_diff      <= (others => '0');
+                r_enable                  <= '0';
+            else
+                r_inst_diff               <= inst_diff;
+                r_inst_signature_sum_diff <= inst_signature_sum_diff;
+                r_reg_signature_diff      <= reg_signature_diff;
+                r_enable                  <= enable;
+            end if;
+        end if;
+    end process;
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     
 
@@ -231,7 +249,7 @@ begin
     end process;
 
     -- The salve index is computed from the apb address
-    slave_index <= unsigned(apbi_paddr_i(17 downto 2));
+    slave_index <= unsigned(apbi_paddr_i(15 downto 2));
     -- The address to read from the histograms memory is also computed.
     -- From the third position onwards it drives the apb bus read address to the histograms memory address signal.
     histogram_read_addr <= slave_index-REGISTERS_NUMBER; 

@@ -34,6 +34,7 @@ architecture rtl of mem_regs_sign is
 
 begin
 
+    -- Two ports memory ----------------------------------------------------------------------
     process(clk)
     begin
         if rising_edge(clk) then
@@ -59,8 +60,10 @@ begin
             memory_regs_n(to_integer(unsigned(addr_2))) <= wdata_2;
         end if;
     end process;
+    -----------------------------------------------------------------------------------------
            
     
+    -- Calculation of the signature ---------------------------------------------------------
     process(memory_regs)
         variable temp : std_logic_vector(regs_number*coding_bits-1 downto 0);
     begin
@@ -69,8 +72,6 @@ begin
         end loop;
         reg_signature <= temp;
     end process;
-
-
-
+    -----------------------------------------------------------------------------------------
     
 end;

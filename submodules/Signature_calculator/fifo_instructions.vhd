@@ -30,6 +30,10 @@ architecture rtl of fifo_instructions is
     signal fifo_counter : unsigned(FIFO_COUNTER_BITS-1 downto 0);
 begin
 
+    -- This is a FIFO with many positions as 'sabed_inst'. Every position of the fifo has space for two instructions, one of each lane.
+
+    -- FIFO ---------------------------------------------------------------------------------------------------------------------------------
+    -- Every cycle new pair of instructions is stored and the less recently stored are discarded.
     process(clk)
     begin
         if rising_edge(clk) then
@@ -48,7 +52,10 @@ begin
             end if;
         end if;
     end process;
+    -----------------------------------------------------------------------------------------------------------------------------------------
 
+    -- Signature calculation ----------------------------------------------------------------------------------------------------------------
+    -- The signature is calculated as the sumation of all the stored instructions.
     process(fifo_input, fifo_mem, fifo_counter) 
         variable temp_conc : std_logic_vector(INST_CONC_SIG_BITS-1 downto 0);
         variable temp_sum  : unsigned(INST_SUM_SIG_BITS-1 downto 0);
@@ -66,7 +73,7 @@ begin
             temp_sum := temp_sum + unsigned(fifo_mem(j)(coding_bits*2-1 downto coding_bits)) + unsigned(fifo_mem(j)(coding_bits-1 downto 0));
         end loop;
         inst_signature_sum <= std_logic_vector(temp_sum);
-
     end process;
+    -----------------------------------------------------------------------------------------------------------------------------------------
 
 end;
