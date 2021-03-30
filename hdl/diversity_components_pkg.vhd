@@ -8,10 +8,11 @@ package diversity_components_pkg is
 
     component diversity_quantifier_top is
         generic (
-            coding_method : integer := 1;
-            coding_bits   : integer := 1;
-            regs_number   : integer := 32;
-            saved_inst    : integer := 32
+            coding_method    : integer := 1;
+            coding_bits_reg  : integer := 1;
+            coding_bits_inst : integer := 1;
+            regs_number      : integer := 32;
+            saved_inst       : integer := 32
         );
         port (
             rstn           : in  std_ulogic;
@@ -38,7 +39,8 @@ package diversity_components_pkg is
     component signature_calculator is
          generic (
              coding_method      : integer := 1;
-             coding_bits        : integer := 1;
+             coding_bits_reg    : integer := 1;
+             coding_bits_inst   : integer := 1;
              regs_number        : integer := 32;
              saved_inst         : integer := 32;
              REG_SIG_BITS       : integer := 32;
@@ -52,10 +54,11 @@ package diversity_components_pkg is
              -- Instructions signature
              instructions_i : in instruction_type;
              -- Registers signatures
-             registers_i : in register_type;
-             reg_signature_o    : out std_logic_vector(coding_bits*regs_number-1 downto 0);
-             inst_signature_sum_o   : out std_logic_vector(integer(floor(log2(real(((2 ** coding_bits)-1)*saved_inst*2)))) downto 0); -- max value is maximum value per register * number of saved insts
-             inst_signature_conc_o : out std_logic_vector(coding_bits*saved_inst*2-1 downto 0)
+             registers_i : in register_type; 
+             -- Signatures
+             reg_signature_o       : out std_logic_vector(REG_SIG_BITS-1 downto 0);
+             inst_signature_sum_o  : out std_logic_vector(INST_SUM_SIG_BITS-1 downto 0);
+             inst_signature_conc_o : out std_logic_vector(INST_CONC_SIG_BITS-1 downto 0)
           );
     end component signature_calculator;
 

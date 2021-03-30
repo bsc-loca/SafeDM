@@ -26,7 +26,7 @@ architecture rtl of fifo_instructions is
     type fifo_type is array (natural range <>) of std_logic_vector(coding_bits*2-1 downto 0); 
     signal fifo_mem, fifo_mem_n : fifo_type(saved_inst-1 downto 0);
 
-    constant FIFO_COUNTER_BITS : integer := integer(floor(log2(real(saved_inst))));
+    constant FIFO_COUNTER_BITS : integer := integer(ceil(log2(real(saved_inst))));
     signal fifo_counter : unsigned(FIFO_COUNTER_BITS-1 downto 0);
 begin
 

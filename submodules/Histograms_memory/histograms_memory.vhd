@@ -55,14 +55,14 @@ architecture rtl of histograms_memory is
     -- ** The number of sections, its limits and its granularity can be change anytime and the rest of the VDHL design will adapt **
     -- For the instructions uneven sections of even intervals are defined. That is to say, each section contains n intervals with the same granularity.
     -- Define the number of sections of intervals in which the granularity is different
-    constant inst_sig_interval_sections : integer := 5; 
+    constant inst_sig_interval_sections : integer := 6; 
     type inst_sig_diff_section_limit_type is array (0 to inst_sig_interval_sections-1) of integer;
     type inst_sig_diff_section_granularity_type is array (0 to inst_sig_interval_sections-2) of integer;
 
     -- These constatns of integer arrays denife the limits between sections and its granularity:
-                                                                                         -- Section1  Section2  Section3   Section4   Section5
-    constant inst_sig_diff_section_limits : inst_sig_diff_section_limit_type            := ( 0 => 0 , 1 => 30 , 2 => 100 , 3 => 200 , 4 => 5000); 
-    constant inst_sig_diff_section_granularity : inst_sig_diff_section_granularity_type := ( 0 => 1 , 1 => 5  , 2 => 20  , 3 => 50);
+                                                                                         -- Section1  Section2  Section3   Section4   Section5   Section6
+    constant inst_sig_diff_section_limits : inst_sig_diff_section_limit_type            := ( 0 => 0 , 1 => 30 , 2 => 100 , 3 => 400 , 4 => 1000, 5 => 10000);  --|=> number of intervals
+    constant inst_sig_diff_section_granularity : inst_sig_diff_section_granularity_type := ( 0 => 1 , 1 => 5  , 2 => 20  , 3 => 50  , 4 => 1000);              --|          79
     -- Section 1 will have 30 intervals of 1, from 0 to 29. 0,1,2,3,4,...,29
     -- Section 2 will have 14 intervals of 5, from 30 to 100. 30-34,35-39,...,95-99
     -- ......
@@ -91,7 +91,7 @@ architecture rtl of histograms_memory is
                 -- If the analyzed section does not correspond with the section of the interval, we add the total intervals in that section to the variable intervals number
                 intervals_number := intervals_number + (inst_sig_diff_section_limits(i+1)-inst_sig_diff_section_limits(i))/inst_sig_diff_section_granularity(i); 
                 -- We substract the instructions 
-                rest := rest - inst_sig_diff_section_limits(i+1);
+                rest := rest - (inst_sig_diff_section_limits(i+1)-inst_sig_diff_section_limits(i));
             end if;
         end loop;
         return intervals_number;
