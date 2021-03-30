@@ -8,10 +8,11 @@ use bsc.diversity_components_pkg.all;
 
 entity diversity_quantifier_top is
     generic (
-        coding_method : integer := 1;
-        coding_bits   : integer := 1;
-        regs_number   : integer := 32;
-        saved_inst    : integer := 32
+        coding_method    : integer := 2;
+        coding_bits_reg  : integer := 8;
+        coding_bits_inst : integer := 7;
+        regs_number      : integer := 32;
+        saved_inst       : integer := 32
         );
     port (
         rstn           : in  std_ulogic;
@@ -37,9 +38,9 @@ end;
 
 architecture rtl of diversity_quantifier_top is
     -- Number of bits for the signals of the signatures -----------------------------------------------------------------
-    constant REG_SIG_BITS : integer := regs_number; -- coding_bits*regs_number;
-    constant INST_SUM_SIG_BITS : integer := integer(ceil(log2(real(((2 ** coding_bits)-1)*saved_inst*2))));
-    constant INST_CONC_SIG_BITS : integer := coding_bits*saved_inst*2;
+    constant REG_SIG_BITS : integer := coding_bits_reg*regs_number;
+    constant INST_SUM_SIG_BITS : integer := integer(ceil(log2(real(((2 ** coding_bits_inst)-1)*saved_inst*2))));
+    constant INST_CONC_SIG_BITS : integer := coding_bits_inst*saved_inst*2;
     ---------------------------------------------------------------------------------------------------------------------
 
 
@@ -55,7 +56,7 @@ architecture rtl of diversity_quantifier_top is
     ---------------------------------------------------------------------------------------------------------------------
 
     -- Signal and constant for the differences of the signatures --------------------------------------------------------
-    constant MAX_INST_SIGNATURE_DIFF : integer := ((2 ** coding_bits)-1)*saved_inst*2;
+    constant MAX_INST_SIGNATURE_DIFF : integer := ((2 ** coding_bits_inst)-1)*saved_inst*2;
     constant MAX_REG_SIGNATURE_DIFF : integer := regs_number;
     constant MAX_REG_SIGNATURE_DIFF_BITS : integer := integer(ceil(log2(real(regs_number+1))));
     signal reg_signature_diff, r_reg_signature_diff : std_logic_vector(MAX_REG_SIGNATURE_DIFF_BITS-1 downto 0);
@@ -95,8 +96,9 @@ begin
     signature_calc_inst : for n in 0 to 1 generate
         signature_calculator_inst : signature_calculator
         generic map(
-            coding_method      => 1,
-            coding_bits        => coding_bits,
+            coding_method      => coding_method,
+            coding_bits_reg    => coding_bits_reg,
+            coding_bits_inst   => coding_bits_inst,
             regs_number        => regs_number,
             saved_inst         => saved_inst, 
             REG_SIG_BITS       => REG_SIG_BITS,
@@ -124,12 +126,13 @@ begin
         variable temp_regs      : unsigned(MAX_REG_SIGNATURE_DIFF_BITS-1 downto 0);
         variable temp_inst_conc : unsigned(INST_CONC_SIG_BITS-1 downto 0);
     begin
+        -- REGISTER SIGNATURE
         -- Number of diferent registers in the registers signature
         -- Registers value stored in the different positions of the regsiters signature are compared one by one
         temp_regs := (others => '0');
         for i in integer(regs_number) downto 1 loop
-            if reg_signature(0)(i*coding_bits-1 downto (i-1)*coding_bits) /= reg_signature(1)(i*coding_bits-1 downto (i-1)*coding_bits) then -- It compares registers one by one 
-                temp_regs := temp_regs + 1;                                                                                                  -- Independently of the coding bits and regs number
+            if reg_signature(0)(i*coding_bits_reg-1 downto (i-1)*coding_bits_reg) /= reg_signature(1)(i*coding_bits_reg-1 downto (i-1)*coding_bits_reg) then -- It compares registers one by one 
+                temp_regs := temp_regs + 1;                                                                                                         -- Independently of the coding bits and regs number
             end if;
         end loop;
         reg_signature_diff <= std_logic_vector(temp_regs);
@@ -145,6 +148,7 @@ begin
         end loop;
         inst_signature_conc_diff <= std_logic_vector(temp_inst_conc);
  
+        -- INSTRUCTION SIGNATURE
         -- Asolute numeric difference between both instructions signatures
         if unsigned(inst_signature_sum(0)) > unsigned(inst_signature_sum(1)) then
             inst_signature_sum_diff <= unsigned(inst_signature_sum(0)) - unsigned(inst_signature_sum(1)); 
