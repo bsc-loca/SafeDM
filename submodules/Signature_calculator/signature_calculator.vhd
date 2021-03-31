@@ -12,7 +12,7 @@ entity signature_calculator is
         coding_bits_reg    : integer := 1;    -- Number of bits of each register signature element
         coding_bits_inst   : integer := 1;    -- Number of bits of each instruction signature element
         regs_number        : integer := 32;   -- Number of registers in the signature
-        saved_inst         : integer := 32;   -- Number of saved instructions
+        saved_inst         : integer := 16;   -- Number of saved instructions
         REG_SIG_BITS       : integer := 32;   -- Number of bits for the register signature
         INST_SUM_SIG_BITS  : integer := 6;    -- Number of bits for the instructions signature (sumation)
         INST_CONC_SIG_BITS : integer := 64    -- Number of bits for the instructions signature (concatenation) 
@@ -119,8 +119,10 @@ architecture rtl of signature_calculator is
     -- Register signature signals ------------------------------------------
     signal reg_coding_port1, reg_coding_port2 : std_logic_vector(coding_bits_reg-1 downto 0);
     -- Instruction signature signals ---------------------------------------
-    signal inst_coding_lane1, inst_coding_lane2, coding_register_lane1, coding_register_lane2: std_logic_vector(coding_bits_inst-1 downto 0);
+    signal inst_coding_lane1, inst_coding_lane2, fifo_input_low, fifo_input_high: std_logic_vector(coding_bits_inst-1 downto 0);
+    signal r_instruction_lane1, r_instruction_lane2 : std_logic_vector(31 downto 0);
     signal fifo_input : std_logic_vector(coding_bits_inst*2-1 downto 0);
+    signal wen : std_logic;
     ---------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -188,29 +190,30 @@ begin
     ---------------------------------------------------------------------------------------------------------------------------------------------
     -- INTRUCTION SIGNATURE ---------------------------------------------------------------------------------------------------------------------
     ---------------------------------------------------------------------------------------------------------------------------------------------
-    -- If the value of the instruction in decode is not valid, we should use the previous value until it is valid. To do so we should register
-    -- each lanes instruction and dependeding on the valid signal of each line use the register value or the acutal one.
+
     process(clk)
     begin
         if rising_edge(clk) then
             if rstn = '0' then
-                coding_register_lane1 <= (others => '0');
-                coding_register_lane2 <= (others => '0');
+                r_instruction_lane1 <= (others => '0');
+                r_instruction_lane2 <= (others => '0');
             else
-                if instructions_i.valid(0) = '1' then 
-                    coding_register_lane1 <= inst_coding_lane1;
-                end if;
-                if instructions_i.valid(1) = '1' then 
-                    coding_register_lane2 <= inst_coding_lane2;
+                if (enable = '1' and wen = '1') then
+                    r_instruction_lane1  <= instructions_i.opcode(0);
+                    r_instruction_lane2 <= instructions_i.opcode(1);
                 end if;
             end if;
         end if;
     end process;
 
-    fifo_input <= (coding_register_lane1 & coding_register_lane2) when instructions_i.valid(0) = '0' and  instructions_i.valid(1) = '0' else
-                  (inst_coding_lane1 & coding_register_lane2) when instructions_i.valid(0) = '1' and  instructions_i.valid(1) = '0' else
-                  (coding_register_lane1 & inst_coding_lane2 ) when instructions_i.valid(0) = '0' and  instructions_i.valid(1) = '1' else
-                  (inst_coding_lane1 & inst_coding_lane2);
+    fifo_input_low  <= inst_coding_lane1 when (instructions_i.valid(0) = '1' and instructions_i.opcode(0) /= r_instruction_lane1) else
+                       (others => '0');
+    fifo_input_high <= inst_coding_lane2 when (instructions_i.valid(1) = '1' and instructions_i.opcode(1) /= r_instruction_lane2) else
+                       (others => '0');
+    fifo_input <= fifo_input_high & fifo_input_low; 
+
+    wen <= '1' when (instructions_i.valid /= "00" and instructions_i.opcode(0) /= r_instruction_lane1 and instructions_i.opcode(1) /= r_instruction_lane2) else
+           '0';
 
 
     -- This is a FIFO with many positions as 'sabed_inst'. Every position of the fifo has space for two instructions, one of each lane.
@@ -227,6 +230,7 @@ begin
             rstn    => rstn,
             clk     => clk,
             enable  => enable,
+            wen     => wen,
             fifo_input => fifo_input,
             inst_signature_sum  => inst_signature_sum_o,
             inst_signature_conc => inst_signature_conc_o

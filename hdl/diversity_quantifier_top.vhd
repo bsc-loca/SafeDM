@@ -12,7 +12,7 @@ entity diversity_quantifier_top is
         coding_bits_reg  : integer := 8;
         coding_bits_inst : integer := 7;
         regs_number      : integer := 32;
-        saved_inst       : integer := 32
+        saved_inst       : integer := 8
         );
     port (
         rstn           : in  std_ulogic;

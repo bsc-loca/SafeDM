@@ -95,6 +95,7 @@ package diversity_components_pkg is
             rstn       : in std_ulogic;
             clk        : in std_ulogic;
             enable     : in std_logic;
+            wen        : in std_logic;
             fifo_input : in std_logic_vector(coding_bits*2-1 downto 0);
             inst_signature_sum  : out std_logic_vector(integer(floor(log2(real(((2 ** coding_bits)-1)*saved_inst*2)))) downto 0); -- max value is maximum value per register * number of registers;
             inst_signature_conc : out std_logic_vector(coding_bits*saved_inst*2-1 downto 0)

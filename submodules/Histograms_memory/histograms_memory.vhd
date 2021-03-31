@@ -61,8 +61,8 @@ architecture rtl of histograms_memory is
 
     -- These constatns of integer arrays denife the limits between sections and its granularity:
                                                                                          -- Section1  Section2  Section3   Section4   Section5   Section6
-    constant inst_sig_diff_section_limits : inst_sig_diff_section_limit_type            := ( 0 => 0 , 1 => 30 , 2 => 100 , 3 => 400 , 4 => 1000, 5 => 10000); 
-    constant inst_sig_diff_section_granularity : inst_sig_diff_section_granularity_type := ( 0 => 1 , 1 => 5  , 2 => 20  , 3 => 50  , 4 => 1000);
+    constant inst_sig_diff_section_limits : inst_sig_diff_section_limit_type            := ( 0 => 0 , 1 => 30 , 2 => 100 , 3 => 400 , 4 => 1000, 5 => 10000); --|=> number of intervals:
+    constant inst_sig_diff_section_granularity : inst_sig_diff_section_granularity_type := ( 0 => 1 , 1 => 5  , 2 => 20  , 3 => 50  , 4 => 1000);             --|          73
     -- Section 1 will have 30 intervals of 1, from 0 to 29. 0,1,2,3,4,...,29
     -- Section 2 will have 14 intervals of 5, from 30 to 100. 30-34,35-39,...,95-99
     -- ......
