@@ -1,0 +1,58 @@
+|------------------------------------------------------------------------------------|
+| Version 1.0							                     |
+|------------------------------------------------------------------------------------|
+|                                                                                    |
+|INSTRUCTION SIGNATURE: Instruction signature is calculated adding all the           |
+|instructions extended hamming code (7 bits each instruction). The difference        |
+|is computed as the absolute value of the difference of both signatures.             |
+|                                                                                    |
+|REGISTER SIGNATURE: Register signature is calculated concatenating all the          |
+|registers extended hamming code. The difference is calculated comparing one by      |
+|one these values.                                                                   |
+|                                                                                    |
+|MEMORY MAP (HISTOGRAMS): Bins of the instruction signature difference are           |
+|unven. Number of bins is calculated automatically as a function of the number       |
+|of instructions and the instruction coding bits.                                    |
+|                                                                                    |
+|Memory:                                                                             |
+|--> Difference of instruction histogram                                             |
+|--> Instruction signature difference histograms                                     |
+|--> Register signature difference histograms                                        |
+|                                                                                    |
+|PARAMETERS:                                                                         |
+|coding_method = 2                                                                   |
+|coding_bits_reg  = 8                                                                |
+|coding_bits_inst = 7                                                                |
+|regs_number = 32                                                                    |
+|saved_instructions = 32                                                             |
+|                                                                                    |
+|------------------------------------------------------------------------------------|
+                                                                                     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
