@@ -8,11 +8,12 @@ package diversity_components_pkg is
 
     component diversity_quantifier_top is
         generic (
-            coding_method    : integer := 1;
-            coding_bits_reg  : integer := 1;
-            coding_bits_inst : integer := 1;
-            regs_number      : integer := 32;
-            saved_inst       : integer := 32
+            coding_method         : integer := 1;
+            coding_bits_reg       : integer := 1;
+            coding_bits_inst_sum  : integer := 1;
+            coding_bits_inst_conc : integer := 1;
+            regs_number           : integer := 32;
+            saved_inst            : integer := 32
         );
         port (
             rstn           : in  std_ulogic;
@@ -29,6 +30,8 @@ package diversity_components_pkg is
             instructions_i : in instruction_type_vector;
             -- Registers signatures
             registers_i : in register_type_vector;
+            -- hold signal
+            hold : in std_logic_vector(1 downto 0);
             -- Instruction counters
             icnt1_i : in std_logic_vector(1 downto 0);
             icnt2_i : in std_logic_vector(1 downto 0)
@@ -38,14 +41,16 @@ package diversity_components_pkg is
 
     component signature_calculator is
          generic (
-             coding_method      : integer := 1;
-             coding_bits_reg    : integer := 1;
-             coding_bits_inst   : integer := 1;
-             regs_number        : integer := 32;
-             saved_inst         : integer := 32;
-             REG_SIG_BITS       : integer := 32;
-             INST_SUM_SIG_BITS  : integer := 6;
-             INST_CONC_SIG_BITS : integer := 64
+             coding_method         : integer := 1;
+             coding_bits_reg       : integer := 1;
+             coding_bits_inst_sum  : integer := 1;
+             coding_bits_inst_conc : integer := 32;
+             regs_number           : integer := 32;
+             saved_inst            : integer := 32;
+             REG_SIG_PORT_BITS     : integer := 4;
+             REG_SIG_BITS          : integer := 32;
+             INST_SUM_SIG_BITS     : integer := 6;
+             INST_CONC_SIG_BITS    : integer := 64
          );
          port (
              rstn   : in  std_ulogic;
@@ -62,42 +67,55 @@ package diversity_components_pkg is
           );
     end component signature_calculator;
 
-    component mem_regs_sign is
-        generic (
-            regs_number  : integer := 32;
-            coding_bits  : integer := 1
-        );
-        port (
-            rstn    : in std_ulogic;
-            clk     : in std_ulogic;
-            enable  : in std_logic;
-            -- Port 1
-            we_1    : in std_logic;
-            wdata_1 : in std_logic_vector(coding_bits-1 downto 0);
-            addr_1  : in std_logic_vector(4 downto 0);
-            -- Port 2
-            we_2    : in std_logic;
-            wdata_2 : in std_logic_vector(coding_bits-1 downto 0);
-            addr_2  : in std_logic_vector(4 downto 0);
-            -- Output
-            reg_signature : out std_logic_vector(regs_number*coding_bits-1 downto 0)
-         );
-    end component mem_regs_sign;  
+    --component mem_regs_sign is
+    --    generic (
+    --        regs_number  : integer := 32;
+    --        coding_bits  : integer := 1
+    --    );
+    --    port (
+    --        rstn    : in std_ulogic;
+    --        clk     : in std_ulogic;
+    --        enable  : in std_logic;
+    --        -- Port 1 read
+    --        ren1  : in std_logic;
+    --        data1 : in std_logic_vector(coding_bits-1 downto 0);
+    --        -- Port 2 read
+    --        ren2  : in std_logic_vector(coding_bits-1 downto 0);
+    --        data2 : in std_logic;
+    --        -- Port 3 read
+    --        ren3  : in std_logic_vector(coding_bits-1 downto 0);
+    --        data3 : in std_logic;
+    --        -- Port 4 read
+    --        ren4  : in std_logic_vector(coding_bits-1 downto 0);
+    --        data4 : in std_logic;
+    --        -- Port 1
+    --        we_1    : in std_logic;
+    --        wdata_1 : in std_logic_vector(coding_bits-1 downto 0);
+    --        -- Port 2
+    --        we_2    : in std_logic;
+    --        wdata_2 : in std_logic_vector(coding_bits-1 downto 0);
+    --        -- Output
+    --        reg_signature : out std_logic_vector(regs_number*coding_bits-1 downto 0)
+    --     );
+    --end component mem_regs_sign;  
 
     component fifo_instructions is
         generic (
-            saved_inst  : integer := 32;
-            coding_bits : integer := 1;
-            INST_SUM_SIG_BITS  : integer := 6;
-            INST_CONC_SIG_BITS : integer := 64
+            SUMMATION      : integer := 0;
+            CONCATENATION  : integer := 0;
+            repetition     : integer := 1;
+            fifo_positions : integer := 32;
+            coding_bits    : integer := 1;
+            SUM_SIG_BITS   : integer := 6;
+            CONC_SIG_BITS  : integer := 64
         );
         port (
             rstn       : in std_ulogic;
             clk        : in std_ulogic;
             enable     : in std_logic;
-            fifo_input : in std_logic_vector(coding_bits*2-1 downto 0);
-            inst_signature_sum  : out std_logic_vector(integer(floor(log2(real(((2 ** coding_bits)-1)*saved_inst*2)))) downto 0); -- max value is maximum value per register * number of registers;
-            inst_signature_conc : out std_logic_vector(coding_bits*saved_inst*2-1 downto 0)
+            fifo_input : in std_logic_vector(coding_bits*repetition-1 downto 0);
+            signature_sum  : out std_logic_vector(SUM_SIG_BITS-1  downto 0); -- max value is maximum value per register * number of registers;
+            signature_conc : out std_logic_vector(CONC_SIG_BITS-1 downto 0)
             );
     end component fifo_instructions;
 
@@ -115,11 +133,13 @@ package diversity_components_pkg is
 
     component histograms_memory is
         generic(
-             INST_SIGNATURE_DIFF_BITS : integer := 6;
-             REG_SIGNATURE_DIFF_BITS : integer := 6;
-             MAX_INST_SIGNATURE_DIFF : integer := 32;
-             MAX_REG_SIGNATURE_DIFF  : integer := 32
-             );
+            INST_SIGNATURE_DIFF_BITS : integer := 6;
+            REG_SIGNATURE_DIFF_BITS : integer := 6;
+            CONC_SIGNATURE_DIFF_BITS : integer := 6;
+            MAX_INST_SIGNATURE_DIFF : integer := 32;
+            MAX_REG_SIGNATURE_DIFF  : integer := 32;
+            MAX_CONC_SIGNATURE_DIFF  : integer := 32
+            );
         port (
             rstn   : in  std_ulogic;
             clk    : in  std_ulogic;
@@ -128,6 +148,7 @@ package diversity_components_pkg is
             inst_diff_i           : in std_logic_vector(15 downto 0);
             inst_signature_diff_i : in std_logic_vector(INST_SIGNATURE_DIFF_BITS-1 downto 0);
             reg_signature_diff_i  : in std_logic_vector(REG_SIGNATURE_DIFF_BITS-1 downto 0); 
+            conc_signature_diff_i : in std_logic_vector(CONC_SIGNATURE_DIFF_BITS-1 downto 0);   
             -- Memory read
             addr_i    : in std_logic_vector(13 downto 0); --TODO: change it to adapt
             -- Memory out

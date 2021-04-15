@@ -8,11 +8,12 @@ use bsc.diversity_components_pkg.all;
 
 entity diversity_quantifier_top is
     generic (
-        coding_method    : integer := 2;
-        coding_bits_reg  : integer := 8;
-        coding_bits_inst : integer := 7;
-        regs_number      : integer := 32;
-        saved_inst       : integer := 32
+        coding_method         : integer := 2;
+        coding_bits_reg       : integer := 64;
+        coding_bits_inst_sum  : integer := 7;
+        coding_bits_inst_conc : integer := 32;
+        regs_number           : integer := 5;
+        saved_inst            : integer := 6
         );
     port (
         rstn           : in  std_ulogic;
@@ -29,6 +30,8 @@ entity diversity_quantifier_top is
         instructions_i : in instruction_type_vector;
         -- Registers signatures
         registers_i : in register_type_vector;
+        -- hold signals
+        hold : in std_logic_vector(1 downto 0);
         -- Instruction counters
         icnt1_i : in std_logic_vector(1 downto 0);
         icnt2_i : in std_logic_vector(1 downto 0)
@@ -38,9 +41,10 @@ end;
 
 architecture rtl of diversity_quantifier_top is
     -- Number of bits for the signals of the signatures -----------------------------------------------------------------
-    constant REG_SIG_BITS : integer := coding_bits_reg*regs_number;
-    constant INST_SUM_SIG_BITS : integer := integer(ceil(log2(real(((2 ** coding_bits_inst)-1)*saved_inst*2))));
-    constant INST_CONC_SIG_BITS : integer := coding_bits_inst*saved_inst*2;
+    constant REG_SIG_PORT_BITS : integer := regs_number*coding_bits_reg;
+    constant REG_SIG_BITS : integer := REG_SIG_PORT_BITS*4;
+    constant INST_SUM_SIG_BITS : integer := integer(ceil(log2(real(((2 ** coding_bits_inst_sum)-1)*saved_inst*2))));
+    constant INST_CONC_SIG_BITS : integer := coding_bits_inst_conc*saved_inst*2;
     ---------------------------------------------------------------------------------------------------------------------
 
 
@@ -56,11 +60,13 @@ architecture rtl of diversity_quantifier_top is
     ---------------------------------------------------------------------------------------------------------------------
 
     -- Signal and constant for the differences of the signatures --------------------------------------------------------
-    constant MAX_INST_SIGNATURE_DIFF : integer := ((2 ** coding_bits_inst)-1)*saved_inst*2;
-    constant MAX_REG_SIGNATURE_DIFF : integer := regs_number;
-    constant MAX_REG_SIGNATURE_DIFF_BITS : integer := integer(ceil(log2(real(regs_number+1))));
-    signal reg_signature_diff, r_reg_signature_diff : std_logic_vector(MAX_REG_SIGNATURE_DIFF_BITS-1 downto 0);
-    signal inst_signature_conc_diff : std_logic_vector(INST_CONC_SIG_BITS-1 downto 0);
+    constant INST_SUM_SIGNATURE_DIFF : integer := ((2 ** coding_bits_inst_sum)-1)*saved_inst*2;
+    constant MAX_REG_SIGNATURE_DIFF : integer := regs_number*4;
+    constant REG_SIGNATURE_DIFF_BITS : integer := integer(ceil(log2(real(MAX_REG_SIGNATURE_DIFF))));
+    constant MAX_CONC_SIGNATURE_DIFF : integer := saved_inst*2;
+    constant CONC_SIGNATURE_DIFF_BITS : integer := integer(ceil(log2(real(MAX_CONC_SIGNATURE_DIFF))));
+    signal reg_signature_diff, r_reg_signature_diff : std_logic_vector(REG_SIGNATURE_DIFF_BITS-1 downto 0);
+    signal inst_signature_conc_diff, r_inst_signature_conc_diff : std_logic_vector(CONC_SIGNATURE_DIFF_BITS-1 downto 0);
     signal inst_signature_sum_diff, r_inst_signature_sum_diff : unsigned(INST_SUM_SIG_BITS-1  downto 0); -- The bits of the signatures are calculated thinking in the maximum posible difference
     ---------------------------------------------------------------------------------------------------------------------
 
@@ -74,6 +80,7 @@ architecture rtl of diversity_quantifier_top is
     -- Enable signals
     signal cores_enable : std_logic_vector(1 downto 0);
     signal enable, r_enable : std_logic;
+    signal signatures_en : std_logic_vector(1 downto 0);
 
     -- APB bus ----------------------------------------------------------------------------------------------------------
     -- The number or registers can be changed but has to be bigger than 2 for the rest of the design to automatically adapt
@@ -92,23 +99,28 @@ begin
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- SIGNATURE CACLCULATION MODULES --------------------------------------------------------------------------------------------------------------------------------------------
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    -- If hold is set, the signature calculation has to be stopped
+    -- If hold is set the enable of the signature calculator is 0
+    signatures_en <= cores_enable and (not hold);
     -- Two modules to calculate the signatures are instanciated, one for each core
     signature_calc_inst : for n in 0 to 1 generate
         signature_calculator_inst : signature_calculator
         generic map(
-            coding_method      => coding_method,
-            coding_bits_reg    => coding_bits_reg,
-            coding_bits_inst   => coding_bits_inst,
-            regs_number        => regs_number,
-            saved_inst         => saved_inst, 
-            REG_SIG_BITS       => REG_SIG_BITS,
-            INST_SUM_SIG_BITS  => INST_SUM_SIG_BITS,
-            INST_CONC_SIG_BITS => INST_CONC_SIG_BITS
+            coding_method         => coding_method,
+            coding_bits_reg       => coding_bits_reg,
+            coding_bits_inst_sum  => coding_bits_inst_sum,
+            coding_bits_inst_conc => coding_bits_inst_conc,
+            regs_number           => regs_number,
+            saved_inst            => saved_inst, 
+            REG_SIG_PORT_BITS     => REG_SIG_PORT_BITS,
+            REG_SIG_BITS          => REG_SIG_BITS,
+            INST_SUM_SIG_BITS     => INST_SUM_SIG_BITS,
+            INST_CONC_SIG_BITS    => INST_CONC_SIG_BITS
             )
         port map(
             rstn   => internal_rstn, 
             clk    => clk, 
-            enable => cores_enable(n),
+            enable => signatures_en(n),
             -- Instructions signature
             instructions_i => instructions_i(n),
             -- Registers signatures
@@ -122,34 +134,31 @@ begin
 
     -- In this process, the diference between the signatures of both cores are computed
     process(reg_signature, inst_signature_sum, inst_signature_conc)
-        variable temp_xor       : std_logic;
-        variable temp_regs      : unsigned(MAX_REG_SIGNATURE_DIFF_BITS-1 downto 0);
-        variable temp_inst_conc : unsigned(INST_CONC_SIG_BITS-1 downto 0);
+        variable temp_regs      : unsigned(REG_SIGNATURE_DIFF_BITS-1 downto 0);
+        variable temp_inst_conc : unsigned(inst_signature_conc_diff'HIGH downto 0);
     begin
         -- REGISTER SIGNATURE
         -- Number of diferent registers in the registers signature
         -- Registers value stored in the different positions of the regsiters signature are compared one by one
         temp_regs := (others => '0');
-        for i in integer(regs_number) downto 1 loop
+        for i in regs_number*4 downto 1 loop
             if reg_signature(0)(i*coding_bits_reg-1 downto (i-1)*coding_bits_reg) /= reg_signature(1)(i*coding_bits_reg-1 downto (i-1)*coding_bits_reg) then -- It compares registers one by one 
                 temp_regs := temp_regs + 1;                                                                                                         -- Independently of the coding bits and regs number
             end if;
         end loop;
         reg_signature_diff <= std_logic_vector(temp_regs);
 
-        -- THIS SIGNATURE IS NOT USED AT THE MOMENT!! -------
         -- Number of different bits in insts sum signature (concatenation). 
         temp_inst_conc := (others => '0');
-        for i in temp_inst_conc'HIGH downto 0 loop
-            temp_xor := inst_signature_conc(0)(i) xor inst_signature_conc(1)(i);
-            if temp_xor = '1' then
+        for i in saved_inst*2 downto 1 loop
+            if (inst_signature_conc(0)(i*coding_bits_inst_conc-1 downto (i-1)*coding_bits_inst_conc) /= inst_signature_conc(1)(i*coding_bits_inst_conc-1 downto (i-1)*coding_bits_inst_conc)) then
                 temp_inst_conc := temp_inst_conc + 1;
             end if;
         end loop;
         inst_signature_conc_diff <= std_logic_vector(temp_inst_conc);
  
         -- INSTRUCTION SIGNATURE
-        -- Asolute numeric difference between both instructions signatures
+        -- Absolute numeric difference between both instructions signatures
         if unsigned(inst_signature_sum(0)) > unsigned(inst_signature_sum(1)) then
             inst_signature_sum_diff <= unsigned(inst_signature_sum(0)) - unsigned(inst_signature_sum(1)); 
         else
@@ -204,9 +213,11 @@ begin
     histograms_memory_inst : histograms_memory
     generic map(
         INST_SIGNATURE_DIFF_BITS => INST_SUM_SIG_BITS,
-        REG_SIGNATURE_DIFF_BITS  => MAX_REG_SIGNATURE_DIFF_BITS,
-        MAX_INST_SIGNATURE_DIFF  => MAX_INST_SIGNATURE_DIFF,
-        MAX_REG_SIGNATURE_DIFF   => MAX_REG_SIGNATURE_DIFF
+        REG_SIGNATURE_DIFF_BITS  => REG_SIGNATURE_DIFF_BITS,
+        CONC_SIGNATURE_DIFF_BITS => CONC_SIGNATURE_DIFF_BITS,
+        MAX_INST_SIGNATURE_DIFF  => INST_SUM_SIGNATURE_DIFF,
+        MAX_REG_SIGNATURE_DIFF   => MAX_REG_SIGNATURE_DIFF,
+        MAX_CONC_SIGNATURE_DIFF  => MAX_CONC_SIGNATURE_DIFF     
         )
     port map(
         rstn   => internal_rstn, 
@@ -216,6 +227,7 @@ begin
         inst_diff_i           => r_inst_diff,
         inst_signature_diff_i => std_logic_vector(r_inst_signature_sum_diff),
         reg_signature_diff_i  => r_reg_signature_diff,
+        conc_signature_diff_i => r_inst_signature_conc_diff,
         -- Memory read
         addr_i    => std_logic_vector(histogram_read_addr),
         -- Memory out
@@ -227,15 +239,17 @@ begin
     begin
         if rising_edge(clk) then 
             if rstn = '0' then
-                r_inst_diff               <= (others => '0');
-                r_inst_signature_sum_diff <= (others => '0');
-                r_reg_signature_diff      <= (others => '0');
-                r_enable                  <= '0';
+                r_inst_diff                <= (others => '0');
+                r_inst_signature_sum_diff  <= (others => '0');
+                r_reg_signature_diff       <= (others => '0');
+                r_inst_signature_conc_diff <= (others => '0');
+                r_enable                   <= '0';
             else
-                r_inst_diff               <= inst_diff;
-                r_inst_signature_sum_diff <= inst_signature_sum_diff;
-                r_reg_signature_diff      <= reg_signature_diff;
-                r_enable                  <= enable;
+                r_inst_diff                <= inst_diff;
+                r_inst_signature_sum_diff  <= inst_signature_sum_diff;
+                r_reg_signature_diff       <= reg_signature_diff;
+                r_inst_signature_conc_diff <= inst_signature_conc_diff;
+                r_enable                   <= enable;
             end if;
         end if;
     end process;
