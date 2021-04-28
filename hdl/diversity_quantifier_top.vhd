@@ -34,7 +34,8 @@ entity diversity_quantifier_top is
         hold : in std_logic_vector(1 downto 0);
         -- Instruction counters
         icnt1_i : in std_logic_vector(1 downto 0);
-        icnt2_i : in std_logic_vector(1 downto 0)
+        icnt2_i : in std_logic_vector(1 downto 0);
+        logan_o : out std_logic_vector(151 downto 0)
      );
 end;
 
@@ -45,6 +46,7 @@ architecture rtl of diversity_quantifier_top is
     constant REG_SIG_BITS : integer := REG_SIG_PORT_BITS*4;
     constant INST_SUM_SIG_BITS : integer := integer(ceil(log2(real(((2 ** coding_bits_inst_sum)-1)*saved_inst*2))));
     constant INST_CONC_SIG_BITS : integer := coding_bits_inst_conc*saved_inst*2;
+    constant INST_SIG_REGISTERS : integer := saved_inst*2;
     ---------------------------------------------------------------------------------------------------------------------
 
 
@@ -56,14 +58,15 @@ architecture rtl of diversity_quantifier_top is
     signal inst_signature_sum : inst_signature_sum_array(1 downto 0);
 
     type inst_signature_conc_array is array (natural range <>) of std_logic_vector(INST_CONC_SIG_BITS-1 downto 0);
-    signal inst_signature_conc : inst_signature_conc_array(1 downto 0);
+    signal inst_signature_conc   : inst_signature_conc_array(1 downto 0);
+    signal r_inst_signature_conc : inst_signature_conc_array(1 downto 0);
     ---------------------------------------------------------------------------------------------------------------------
 
     -- Signal and constant for the differences of the signatures --------------------------------------------------------
-    constant INST_SUM_SIGNATURE_DIFF : integer := ((2 ** coding_bits_inst_sum)-1)*saved_inst*2;
-    constant MAX_REG_SIGNATURE_DIFF : integer := regs_number*4;
-    constant REG_SIGNATURE_DIFF_BITS : integer := integer(ceil(log2(real(MAX_REG_SIGNATURE_DIFF))));
-    constant MAX_CONC_SIGNATURE_DIFF : integer := saved_inst*2;
+    constant INST_SUM_SIGNATURE_DIFF  : integer := ((2 ** coding_bits_inst_sum)-1)*saved_inst*2;
+    constant MAX_REG_SIGNATURE_DIFF   : integer := regs_number*4;
+    constant REG_SIGNATURE_DIFF_BITS  : integer := integer(ceil(log2(real(MAX_REG_SIGNATURE_DIFF))));
+    constant MAX_CONC_SIGNATURE_DIFF  : integer := saved_inst*2;
     constant CONC_SIGNATURE_DIFF_BITS : integer := integer(ceil(log2(real(MAX_CONC_SIGNATURE_DIFF))));
     signal reg_signature_diff, r_reg_signature_diff : std_logic_vector(REG_SIGNATURE_DIFF_BITS-1 downto 0);
     signal inst_signature_conc_diff, r_inst_signature_conc_diff : std_logic_vector(CONC_SIGNATURE_DIFF_BITS-1 downto 0);
@@ -85,7 +88,7 @@ architecture rtl of diversity_quantifier_top is
     -- APB bus ----------------------------------------------------------------------------------------------------------
     -- The number or registers can be changed but has to be bigger than 2 for the rest of the design to automatically adapt
     type registers_vector is array (natural range <>) of std_logic_vector(31 downto 0);
-    constant REGISTERS_NUMBER : integer := 3;
+    constant REGISTERS_NUMBER : integer := 6+2*INST_SIG_REGISTERS;
     signal r, rin      : registers_vector(REGISTERS_NUMBER-1 downto 0) ;
     signal slave_index : unsigned(13 downto 0);
 
@@ -244,17 +247,31 @@ begin
                 r_reg_signature_diff       <= (others => '0');
                 r_inst_signature_conc_diff <= (others => '0');
                 r_enable                   <= '0';
+                -- For apb read
+                r_inst_signature_conc      <= (others => (others => '0'));
             else
                 r_inst_diff                <= inst_diff;
                 r_inst_signature_sum_diff  <= inst_signature_sum_diff;
                 r_reg_signature_diff       <= reg_signature_diff;
                 r_inst_signature_conc_diff <= inst_signature_conc_diff;
                 r_enable                   <= enable;
+                -- For apb read
+                r_inst_signature_conc      <= inst_signature_conc;
             end if;
         end if;
     end process;
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    
+
+    -- Logic analyzer input
+    logan_o <= instructions_i(1).opcode(1) & -- 32
+               instructions_i(0).opcode(1) & -- 32
+               instructions_i(1).opcode(0) & -- 32
+               instructions_i(0).opcode(0) & -- 32
+               inst_signature_conc_diff &    -- 5
+               hold &                        -- 1
+               clk &                         -- 1
+               inst_diff &                   -- 16
+               r_enable;                     -- 1
 
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- APB BUS HANDLE ------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -272,28 +289,45 @@ begin
     -- From the third position onwards it drives the apb bus read address to the histograms memory address signal.
     histogram_read_addr <= slave_index-REGISTERS_NUMBER; 
 
-    comb : process(rstn, apbi_penable_i, apbi_psel_i, apbi_pwrite_i, apbi_pwdata_i, slave_index, histogram_mem_out, r) is 
+    comb : process(rstn, apbi_penable_i, apbi_psel_i, apbi_pwrite_i, apbi_pwdata_i, slave_index, histogram_mem_out, r, r_inst_signature_conc, r_inst_diff, r_reg_signature_diff, r_inst_signature_conc_diff) is 
         variable v : registers_vector(REGISTERS_NUMBER-1 downto 0);
+        variable slave_index_int : integer;
     begin
+        slave_index_int := to_integer(slave_index);
         v := r;
-        -- From the reads the answer will be the answer of the histograms memory whose 
-        -- input is driven by the address of the apb bus.
+        -- Write registers -------------------------------------------------------------- 
+        if (apbi_psel_i and apbi_pwrite_i) = '1' and slave_index = 0 then
+            -- First core enable
+            v(slave_index_int) := apbi_pwdata_i;
+        elsif (apbi_psel_i and apbi_pwrite_i) = '1' and slave_index = 1 then
+            -- Second core enable
+            v(slave_index_int) := apbi_pwdata_i;
+        elsif (apbi_psel_i and apbi_pwrite_i) = '1' and slave_index = 2 then
+            -- First bit reset
+            v(slave_index_int) := apbi_pwdata_i;
+        end if;
+        -- APB read -------------------------------------------------------------------------------
         apbo_prdata_o <= (others => '0');
-        if (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' then
+        if (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = 3 then
+            -- Read instruction difference
+            apbo_prdata_o(r_inst_diff'LENGTH-1 downto 0) <= r_inst_diff;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = 4 then
+            -- Read register signature difference
+            apbo_prdata_o(r_reg_signature_diff'LENGTH-1 downto 0) <= r_reg_signature_diff;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = 5 then
+            -- Read instruction (conc) signature difference
+            apbo_prdata_o(r_inst_signature_conc_diff'LENGTH-1 downto 0) <= r_inst_signature_conc_diff;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and (slave_index > 5) and (slave_index <= 5+INST_SIG_REGISTERS) then
+            -- Read instruction signature core1 (several registers)
+            apbo_prdata_o <= r_inst_signature_conc(0)(32*(slave_index_int-5)-1 downto 32*(slave_index_int-6));
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and (slave_index > 5+INST_SIG_REGISTERS) and (slave_index <= 5+2*INST_SIG_REGISTERS) then
+            -- Read instruction signature core2 (several registers)
+            apbo_prdata_o <= r_inst_signature_conc(1)(32*(slave_index_int-(5+INST_SIG_REGISTERS))-1 downto 32*(slave_index_int-(6+INST_SIG_REGISTERS)));
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' then
+            -- Read histograms
             apbo_prdata_o <= histogram_mem_out;
         end if;
-        -- Write registers -------------------------------------------------------------- 
-        if (apbi_psel_i and apbi_pwrite_i) = '1' and unsigned(slave_index) = 0 then
-            -- First core enable
-            v(to_integer(slave_index)) := apbi_pwdata_i;
-        elsif (apbi_psel_i and apbi_pwrite_i) = '1' and unsigned(slave_index) = 1 then
-            -- Second core enable
-            v(to_integer(slave_index)) := apbi_pwdata_i;
-        elsif (apbi_psel_i and apbi_pwrite_i) = '1' and unsigned(slave_index) = 2 then
-            -- First bit reset
-            v(to_integer(slave_index)) := apbi_pwdata_i;
-        end if;
-        ---------------------------------------------------------------------------------
+        -------------------------------------------------------------------------------------------
 
         -- update registers
         if rstn = '0' then

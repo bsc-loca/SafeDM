@@ -34,7 +34,8 @@ package diversity_components_pkg is
             hold : in std_logic_vector(1 downto 0);
             -- Instruction counters
             icnt1_i : in std_logic_vector(1 downto 0);
-            icnt2_i : in std_logic_vector(1 downto 0)
+            icnt2_i : in std_logic_vector(1 downto 0);
+            logan_o : out std_logic_vector(151 downto 0)
         );
     end component diversity_quantifier_top; 
 
