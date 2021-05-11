@@ -17,6 +17,7 @@ entity fifo_instructions is
         rstn   : in std_ulogic;
         clk    : in std_ulogic;
         enable : in std_logic;
+        shift  : in std_logic;
         fifo_input : in std_logic_vector(coding_bits*repetition-1 downto 0);
         signature_sum  : out std_logic_vector(SUM_SIG_BITS-1 downto 0); -- max value is maximum value per register * number of registers;
         signature_conc : out std_logic_vector(CONC_SIG_BITS-1 downto 0)
@@ -57,15 +58,28 @@ begin
     end process;
     -----------------------------------------------------------------------------------------------------------------------------------------
 
+    -- The shift signal is driven by the hold signal. When the hold signal is active all the values in the registers
+    -- have to shift. In this way, the last 6 executed instructions are always compared in the rigth order.
+    process(fifo_input, fifo_mem, fifo_counter, shift) 
+        variable temp_sum  : unsigned(SUM_SIG_BITS-1 downto 0);
+    begin
+        if shift = '0' then
+            fifo_mem_n <= fifo_mem;
+            fifo_mem_n(to_integer(fifo_counter)) <= fifo_input;
+        else 
+            fifo_mem_n(0) <= fifo_mem(fifo_positions-1);
+            for i in 1 to fifo_positions-1 loop
+                fifo_mem_n(i) <= fifo_mem(i-1);
+            end loop;
+        end if;
+    end process;
+
     -- Signature calculation ----------------------------------------------------------------------------------------------------------------
     -- The signature is calculated as the sumation of all the stored instructions.
     sum_signature: if SUMMATION = 1 generate
         process(fifo_input, fifo_mem, fifo_counter) 
             variable temp_sum  : unsigned(SUM_SIG_BITS-1 downto 0);
         begin
-            fifo_mem_n <= fifo_mem;
-            fifo_mem_n(to_integer(fifo_counter)) <= fifo_input;
-
             temp_sum := (others => '0');
             -- TODO change the loop to work in funciton of repetition
             for j in fifo_positions-1 downto 0 loop
@@ -83,9 +97,6 @@ begin
         process(fifo_input, fifo_mem, fifo_counter) 
             variable temp_conc : std_logic_vector(CONC_SIG_BITS-1 downto 0);
         begin
-            fifo_mem_n <= fifo_mem;
-            fifo_mem_n(to_integer(fifo_counter)) <= fifo_input;
-
             for i in fifo_positions downto 1 loop
                 temp_conc(i*coding_bits*repetition-1 downto (i-1)*coding_bits*repetition) := fifo_mem(i-1);
             end loop;

@@ -4,13 +4,15 @@ use ieee.numeric_std.all;
 
 entity inst_diff_calculator is
     port(
-        clk            : in  std_logic;
-        rstn           : in  std_logic;
-        enable_core1_i : in  std_logic;
-        enable_core2_i : in  std_logic;
-        icnt1_i        : in  std_logic_vector(1 downto 0);                  -- Instruction counter from the first core
-        icnt2_i        : in  std_logic_vector(1 downto 0);                  -- Instruction counter from the second core
-        inst_diff_o    : out std_logic_vector(15 downto 0)
+        clk                 : in  std_logic;
+        rstn                : in  std_logic;
+        enable_core1_i      : in  std_logic;
+        enable_core2_i      : in  std_logic;
+        icnt1_i             : in  std_logic_vector(1 downto 0);                  -- Instruction counter from the first core
+        icnt2_i             : in  std_logic_vector(1 downto 0);                  -- Instruction counter from the second core
+        inst_diff_o         : out std_logic_vector(31 downto 0);
+        core1_ahead_core2_o : out std_logic;
+        ex_inst_core1_o     : out std_logic_vector(31 downto 0)
         );  
 end;
 
@@ -19,7 +21,8 @@ architecture rtl of inst_diff_calculator is
     -- Signals to calculate the number of executed instructions
     signal r_executed_inst1, n_executed_inst1 : unsigned(31 downto 0);
     signal r_executed_inst2, n_executed_inst2 : unsigned(31 downto 0);
-    signal inst_diff : unsigned(15 downto 0);
+    signal core1_ahead_core2 : std_logic;
+    signal inst_diff : unsigned(31 downto 0);
 begin
 
     process(clk)
@@ -49,10 +52,18 @@ begin
                         r_executed_inst2 + 1 when ((icnt2_i(0) or icnt2_i(1)) and enable_core2_i) = '1' else
                         r_executed_inst2;
 
+    core1_ahead_core2 <= '1' when r_executed_inst1 > r_executed_inst2 else
+                         '0';
+
     -- The instruction different is calculated
-    inst_diff <= n_executed_inst1(15 downto 0) - n_executed_inst2(15 downto 0) when n_executed_inst1 > n_executed_inst2  else
-                 n_executed_inst2(15 downto 0) - n_executed_inst1(15 downto 0);
+    inst_diff <= r_executed_inst1 - r_executed_inst2 when core1_ahead_core2 = '1' else
+                 r_executed_inst2 - r_executed_inst1;
     inst_diff_o <= std_logic_vector(inst_diff);
+
+
+    -- Output to the Logic analyzer (LOGAN)
+    ex_inst_core1_o <= std_logic_vector(n_executed_inst1);
+    core1_ahead_core2_o <= core1_ahead_core2;
 
 
 end;

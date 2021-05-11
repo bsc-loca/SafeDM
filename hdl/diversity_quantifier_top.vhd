@@ -35,7 +35,7 @@ entity diversity_quantifier_top is
         -- Instruction counters
         icnt1_i : in std_logic_vector(1 downto 0);
         icnt2_i : in std_logic_vector(1 downto 0);
-        logan_o : out std_logic_vector(151 downto 0)
+        logan_o : out std_logic_vector(189 downto 0)
      );
 end;
 
@@ -74,7 +74,7 @@ architecture rtl of diversity_quantifier_top is
     ---------------------------------------------------------------------------------------------------------------------
 
     -- instructions difference between cores
-    signal inst_diff, r_inst_diff : std_logic_vector(15 downto 0);
+    signal inst_diff, r_inst_diff : std_logic_vector(31 downto 0);
 
     -- Histograms memorie signals
     signal histogram_read_addr : unsigned(13 downto 0);
@@ -83,7 +83,13 @@ architecture rtl of diversity_quantifier_top is
     -- Enable signals
     signal cores_enable : std_logic_vector(1 downto 0);
     signal enable, r_enable : std_logic;
-    signal signatures_en : std_logic_vector(1 downto 0);
+
+    -- Logic analyzer (LOGAN)
+    type decode_instructions is array (natural range <>) of std_logic_vector(63 downto 0);
+    signal decode_fifo_input : decode_instructions(1 downto 0);
+    signal ex_inst_core1 : std_logic_vector(31 downto 0);
+    signal core1_ahead_core2 : std_logic;
+    
 
     -- APB bus ----------------------------------------------------------------------------------------------------------
     -- The number or registers can be changed but has to be bigger than 2 for the rest of the design to automatically adapt
@@ -99,12 +105,13 @@ architecture rtl of diversity_quantifier_top is
 
 begin
 
+    --assert (instructions_i(0).opcode(0) /= x"02895433")  report "point reached" severity warning;
+    --assert (instructions_i(0).opcode(0) /= x"00000013")  report "nop reached" severity failure;
+
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- SIGNATURE CACLCULATION MODULES --------------------------------------------------------------------------------------------------------------------------------------------
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-    -- If hold is set, the signature calculation has to be stopped
-    -- If hold is set the enable of the signature calculator is 0
-    signatures_en <= cores_enable and (not hold);
+    -- If hold is set, the registers have to shift so the instructions are always compared in the rigth order
     -- Two modules to calculate the signatures are instanciated, one for each core
     signature_calc_inst : for n in 0 to 1 generate
         signature_calculator_inst : signature_calculator
@@ -123,7 +130,8 @@ begin
         port map(
             rstn   => internal_rstn, 
             clk    => clk, 
-            enable => signatures_en(n),
+            enable => enable,
+            hold_i => hold(n),
             -- Instructions signature
             instructions_i => instructions_i(n),
             -- Registers signatures
@@ -131,7 +139,8 @@ begin
             -- Outputs
             reg_signature_o        => reg_signature(n),
             inst_signature_sum_o   => inst_signature_sum(n),
-            inst_signature_conc_o  => inst_signature_conc(n)
+            inst_signature_conc_o  => inst_signature_conc(n),
+            fifo_input_conc_o      => decode_fifo_input(n)
             );
     end generate signature_calc_inst; 
 
@@ -151,7 +160,7 @@ begin
         end loop;
         reg_signature_diff <= std_logic_vector(temp_regs);
 
-        -- Number of different bits in insts sum signature (concatenation). 
+        -- Number of different instructions in insts sum signature (concatenation). 
         temp_inst_conc := (others => '0');
         for i in saved_inst*2 downto 1 loop
             if (inst_signature_conc(0)(i*coding_bits_inst_conc-1 downto (i-1)*coding_bits_inst_conc) /= inst_signature_conc(1)(i*coding_bits_inst_conc-1 downto (i-1)*coding_bits_inst_conc)) then
@@ -181,11 +190,13 @@ begin
     port map(
         rstn => internal_rstn, 
         clk  => clk, 
-        enable_core1_i => cores_enable(0),
-        enable_core2_i => cores_enable(1),
-        icnt1_i        => icnt1_i,
-        icnt2_i        => icnt2_i,
-        inst_diff_o    => inst_diff
+        enable_core1_i      => cores_enable(0),
+        enable_core2_i      => cores_enable(1),
+        icnt1_i             => icnt1_i,
+        icnt2_i             => icnt2_i,
+        inst_diff_o         => inst_diff,
+        core1_ahead_core2_o => core1_ahead_core2,
+        ex_inst_core1_o     => ex_inst_core1
         );
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -263,15 +274,17 @@ begin
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     -- Logic analyzer input
-    logan_o <= instructions_i(1).opcode(1) & -- 32
-               instructions_i(0).opcode(1) & -- 32
-               instructions_i(1).opcode(0) & -- 32
-               instructions_i(0).opcode(0) & -- 32
-               inst_signature_conc_diff &    -- 5
-               hold &                        -- 1
+    logan_o <= core1_ahead_core2 &           -- 1
+               decode_fifo_input(1) &        -- 64
+               decode_fifo_input(0) &        -- 64
+               hold &                        -- 2
                clk &                         -- 1
-               inst_diff &                   -- 16
-               r_enable;                     -- 1
+               r_enable &                    -- 1
+               reg_signature_diff &          -- 5
+               inst_signature_conc_diff &    -- 4
+               ex_inst_core1 &               -- 32
+               inst_diff(15 downto 0);       -- 16
+                                             -- Total 190 bits
 
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- APB BUS HANDLE ------------------------------------------------------------------------------------------------------------------------------------------------------------

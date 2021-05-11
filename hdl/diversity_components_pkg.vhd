@@ -35,37 +35,40 @@ package diversity_components_pkg is
             -- Instruction counters
             icnt1_i : in std_logic_vector(1 downto 0);
             icnt2_i : in std_logic_vector(1 downto 0);
-            logan_o : out std_logic_vector(151 downto 0)
+            logan_o : out std_logic_vector(189 downto 0)
         );
     end component diversity_quantifier_top; 
 
 
     component signature_calculator is
-         generic (
-             coding_method         : integer := 1;
-             coding_bits_reg       : integer := 1;
-             coding_bits_inst_sum  : integer := 1;
-             coding_bits_inst_conc : integer := 32;
-             regs_number           : integer := 32;
-             saved_inst            : integer := 32;
-             REG_SIG_PORT_BITS     : integer := 4;
-             REG_SIG_BITS          : integer := 32;
-             INST_SUM_SIG_BITS     : integer := 6;
-             INST_CONC_SIG_BITS    : integer := 64
+        generic (
+            coding_method         : integer := 1;
+            coding_bits_reg       : integer := 1;
+            coding_bits_inst_sum  : integer := 1;
+            coding_bits_inst_conc : integer := 32;
+            regs_number           : integer := 32;
+            saved_inst            : integer := 32;
+            REG_SIG_PORT_BITS     : integer := 4;
+            REG_SIG_BITS          : integer := 32;
+            INST_SUM_SIG_BITS     : integer := 6;
+            INST_CONC_SIG_BITS    : integer := 64
+        );
+        port (
+            rstn   : in  std_ulogic;
+            clk    : in  std_ulogic;
+            enable : in std_logic;
+            -- Hold signal
+            hold_i : in std_logic;
+            -- Instructions signature
+            instructions_i : in instruction_type;
+            -- Registers signatures
+            registers_i : in register_type; 
+            -- Signatures
+            reg_signature_o       : out std_logic_vector(REG_SIG_BITS-1 downto 0);
+            inst_signature_sum_o  : out std_logic_vector(INST_SUM_SIG_BITS-1 downto 0);
+            inst_signature_conc_o : out std_logic_vector(INST_CONC_SIG_BITS-1 downto 0);
+            fifo_input_conc_o     : out std_logic_vector(coding_bits_inst_conc*2-1 downto 0)
          );
-         port (
-             rstn   : in  std_ulogic;
-             clk    : in  std_ulogic;
-             enable : in std_logic;
-             -- Instructions signature
-             instructions_i : in instruction_type;
-             -- Registers signatures
-             registers_i : in register_type; 
-             -- Signatures
-             reg_signature_o       : out std_logic_vector(REG_SIG_BITS-1 downto 0);
-             inst_signature_sum_o  : out std_logic_vector(INST_SUM_SIG_BITS-1 downto 0);
-             inst_signature_conc_o : out std_logic_vector(INST_CONC_SIG_BITS-1 downto 0)
-          );
     end component signature_calculator;
 
     --component mem_regs_sign is
@@ -114,6 +117,7 @@ package diversity_components_pkg is
             rstn       : in std_ulogic;
             clk        : in std_ulogic;
             enable     : in std_logic;
+            shift      : in std_logic;
             fifo_input : in std_logic_vector(coding_bits*repetition-1 downto 0);
             signature_sum  : out std_logic_vector(SUM_SIG_BITS-1  downto 0); -- max value is maximum value per register * number of registers;
             signature_conc : out std_logic_vector(CONC_SIG_BITS-1 downto 0)
@@ -128,7 +132,9 @@ package diversity_components_pkg is
             enable_core2_i : in  std_logic;
             icnt1_i        : in  std_logic_vector(1 downto 0);                  -- Instruction counter from the first core
             icnt2_i        : in  std_logic_vector(1 downto 0);                  -- Instruction counter from the second core
-            inst_diff_o    : out std_logic_vector(15 downto 0)
+            inst_diff_o    : out std_logic_vector(31 downto 0);
+            core1_ahead_core2_o : out std_logic;
+            ex_inst_core1_o : out std_logic_vector(31 downto 0)
             );  
     end component inst_diff_calculator;
 
@@ -146,7 +152,7 @@ package diversity_components_pkg is
             clk    : in  std_ulogic;
             enable : in  std_logic;
             -- Data to be stored
-            inst_diff_i           : in std_logic_vector(15 downto 0);
+            inst_diff_i           : in std_logic_vector(31 downto 0);
             inst_signature_diff_i : in std_logic_vector(INST_SIGNATURE_DIFF_BITS-1 downto 0);
             reg_signature_diff_i  : in std_logic_vector(REG_SIGNATURE_DIFF_BITS-1 downto 0); 
             conc_signature_diff_i : in std_logic_vector(CONC_SIGNATURE_DIFF_BITS-1 downto 0);   

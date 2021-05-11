@@ -20,7 +20,7 @@ entity histograms_memory is
         clk    : in  std_ulogic;
         enable : in  std_logic;
         -- Data to be stored
-        inst_diff_i           : in std_logic_vector(15 downto 0);                             -- Instructions difference between both cores 
+        inst_diff_i           : in std_logic_vector(31 downto 0);                             -- Instructions difference between both cores 
         inst_signature_diff_i : in std_logic_vector(INST_SIGNATURE_DIFF_BITS-1 downto 0);     -- differenrence between both instructions signatures 
         reg_signature_diff_i  : in std_logic_vector(REG_SIGNATURE_DIFF_BITS-1 downto 0);      -- differenrence between both registers signatures  
         conc_signature_diff_i : in std_logic_vector(CONC_SIGNATURE_DIFF_BITS-1 downto 0);   
@@ -141,7 +141,7 @@ architecture rtl of histograms_memory is
     -- SIGNALS --------------------------------------------------------------------------------------------------------------------------------------------------------------------
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- DIFFERENCE OF INSTRUCTIONS between both cores -----------------------------
-    signal inst_diff : unsigned(15 downto 0);
+    signal inst_diff : unsigned(31 downto 0);
     -- Difference of instruction interval that has to be incremented
     signal instructions_interval, r_instructions_interval : unsigned(INSTRUCTION_INTERVAL_BITS-1 downto 0);
     ------------------------------------------------------------------------------

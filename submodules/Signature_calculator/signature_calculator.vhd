@@ -10,8 +10,8 @@ entity signature_calculator is
     generic (
         coding_method         : integer := 1;    -- This generic determines which method is used to encode the elements of the signatures
         coding_bits_reg       : integer := 1;    -- Number of bits of each register signature element
-        coding_bits_inst_sum  : integer := 7;    -- Number of bits of each instruction signature element
-        coding_bits_inst_conc : integer := 32;   -- Number of bits of each instruction signature element
+        coding_bits_inst_sum  : integer := 7;    -- Number of bits of each coded instruction (summation)
+        coding_bits_inst_conc : integer := 32;   -- Number of bits of each coded instruction (concatenation)
         regs_number           : integer := 32;   -- Number of registers in the signature
         saved_inst            : integer := 32;   -- Number of saved instructions
         REG_SIG_PORT_BITS     : integer := 4;
@@ -23,6 +23,8 @@ entity signature_calculator is
         rstn   : in std_ulogic;
         clk    : in std_ulogic;
         enable : in std_logic;
+        -- Hold signal
+        hold_i : in std_logic;
         -- Instructions signature
         instructions_i : in instruction_type;    -- Core decode instructions signals
         -- Registers signatures
@@ -30,7 +32,8 @@ entity signature_calculator is
         -- Signatures
         reg_signature_o       : out std_logic_vector(REG_SIG_BITS-1 downto 0);
         inst_signature_sum_o  : out std_logic_vector(INST_SUM_SIG_BITS-1 downto 0);
-        inst_signature_conc_o : out std_logic_vector(INST_CONC_SIG_BITS-1 downto 0)
+        inst_signature_conc_o : out std_logic_vector(INST_CONC_SIG_BITS-1 downto 0);
+        fifo_input_conc_o     : out std_logic_vector(coding_bits_inst_conc*2-1 downto 0)
      );
 end;
 
@@ -208,6 +211,7 @@ begin
                 rstn    => rstn,
                 clk     => clk,
                 enable  => enable,
+                shift   => hold_i,
                 fifo_input => fifo_input_port(n),
                 signature_conc  => reg_signature_port(n)
             );
@@ -262,6 +266,7 @@ begin
             rstn    => rstn,
             clk     => clk,
             enable  => enable,
+            shift   => hold_i,
             fifo_input => fifo_input_sum,
             signature_sum  => inst_signature_sum_o
             --signature_conc => open   -- It can calculate the signature of concatenated instrucctions but not with the whole instruction but with the codification
@@ -297,6 +302,8 @@ begin
                            inst_coding_lane2_conc;
     fifo_input_conc <= fifo_input_high_conc & fifo_input_low_conc;
 
+    -- Output to the Logic anlyzer (LOGAN)
+    fifo_input_conc_o <= fifo_input_conc;  
 
     -- This is a FIFO with many positions as 'sabed_inst'. Every position of the fifo has space for two instructions, one of each lane.
     -- Every cycle new pair of instructions is stored and the less recently stored are discarded.
@@ -313,6 +320,7 @@ begin
             rstn       => rstn,
             clk        => clk,
             enable     => enable,
+            shift      => hold_i,
             fifo_input => fifo_input_conc,
             --inst_signature_sum  => open,
             signature_conc => inst_signature_conc_o -- It can calculate the signature of concatenated instrucctions but not with the whole instruction but with the codification
