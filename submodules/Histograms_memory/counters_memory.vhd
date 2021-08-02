@@ -19,9 +19,9 @@ entity counters_memory is
         clk    : in  std_ulogic;
         enable : in  std_logic;
         -- Data to be stored
-        read_addr      : in std_logic_vector( integer(ceil(log2(real(counters_number))))-1 downto 0); 
-        increment_addr : in std_logic_vector( integer(ceil(log2(real(counters_number))))-1 downto 0); 
-        data_o         : out std_logic_vector(31 downto 0)
+        read_addr      : in std_logic_vector( integer(ceil(log2(real(counters_number))))-1 downto 0); -- Address to read 
+        increment_addr : in std_logic_vector( integer(ceil(log2(real(counters_number))))-1 downto 0); -- Address of the counte that is goint to be incremented
+        data_o         : out std_logic_vector(31 downto 0)                                            -- Read data
     );
 end;
 

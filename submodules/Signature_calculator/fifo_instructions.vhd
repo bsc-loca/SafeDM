@@ -5,22 +5,22 @@ use ieee.math_real.all;
 
 entity fifo_instructions is
     generic (
-        SUMMATION      : integer := 0;
-        CONCATENATION  : integer := 0;
-        repetition     : integer := 1;
-        fifo_positions : integer := 32;
-        coding_bits    : integer := 1;
-        SUM_SIG_BITS   : integer := 6;
-        CONC_SIG_BITS  : integer := 64
+        SUMMATION      : integer := 0;  -- Has to be set to one if the signature is calculated adding all the positions of the FIFO
+        CONCATENATION  : integer := 0;  -- Has to be set to one if the signature is calculated concatenating all the positions of the FIFO
+        repetition     : integer := 1;  -- Number of instructions stored in each position of the FIFO
+        fifo_positions : integer := 32; -- Number of memory positions in the FIFO
+        coding_bits    : integer := 1;  -- Number of bits of each position
+        SUM_SIG_BITS   : integer := 6;  -- Number of summation signature bits
+        CONC_SIG_BITS  : integer := 64  -- Number of concatenation signature bits
     );
     port (
         rstn   : in std_ulogic;
         clk    : in std_ulogic;
         enable : in std_logic;
-        shift  : in std_logic;
-        fifo_input : in std_logic_vector(coding_bits*repetition-1 downto 0);
-        signature_sum  : out std_logic_vector(SUM_SIG_BITS-1 downto 0); -- max value is maximum value per register * number of registers;
-        signature_conc : out std_logic_vector(CONC_SIG_BITS-1 downto 0)
+        shift  : in std_logic;                                                -- When this input is set to 1, the FIFO acts as a shift register
+        fifo_input : in std_logic_vector(coding_bits*repetition-1 downto 0);  -- Values that are stored
+        signature_sum  : out std_logic_vector(SUM_SIG_BITS-1 downto 0);       -- Summaiton signature output
+        signature_conc : out std_logic_vector(CONC_SIG_BITS-1 downto 0)       -- Concatenation signature output
     );
 end;
 

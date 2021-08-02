@@ -8,12 +8,12 @@ use bsc.diversity_components_pkg.all;
 
 entity histograms_memory is
     generic(
-        INST_SIGNATURE_DIFF_BITS : integer := 6;   -- Bits needed to store the maximum difference between instructions signatrues
+        INST_SIGNATURE_DIFF_BITS : integer := 6;   -- Bits needed to store the maximum difference between instructions_sum signatrues
         REG_SIGNATURE_DIFF_BITS  : integer := 6;   -- Bits needed to store the maximum difference between registers signatrues
-        CONC_SIGNATURE_DIFF_BITS : integer := 6;   -- 
-        MAX_INST_SIGNATURE_DIFF  : integer := 32;  -- Biggest possible difference between instructions signatures
+        CONC_SIGNATURE_DIFF_BITS : integer := 6;   -- Bits needed to store the maximum difference between instruction_conc signatrues
+        MAX_INST_SIGNATURE_DIFF  : integer := 32;  -- Biggest possible difference between instructions_sum signatures
         MAX_REG_SIGNATURE_DIFF   : integer := 32;  -- Biggest possible difference between registers signatures
-        MAX_CONC_SIGNATURE_DIFF  : integer := 32   -- 
+        MAX_CONC_SIGNATURE_DIFF  : integer := 32   -- Biggest possible difference between instructions_conc signatures
         );
     port (
         rstn   : in  std_ulogic;
@@ -21,9 +21,9 @@ entity histograms_memory is
         enable : in  std_logic;
         -- Data to be stored
         inst_diff_i           : in std_logic_vector(31 downto 0);                             -- Instructions difference between both cores 
-        inst_signature_diff_i : in std_logic_vector(INST_SIGNATURE_DIFF_BITS-1 downto 0);     -- differenrence between both instructions signatures 
-        reg_signature_diff_i  : in std_logic_vector(REG_SIGNATURE_DIFF_BITS-1 downto 0);      -- differenrence between both registers signatures  
-        conc_signature_diff_i : in std_logic_vector(CONC_SIGNATURE_DIFF_BITS-1 downto 0);   
+        inst_signature_diff_i : in std_logic_vector(INST_SIGNATURE_DIFF_BITS-1 downto 0);     -- Differenrence between both instructions_sum signatures 
+        reg_signature_diff_i  : in std_logic_vector(REG_SIGNATURE_DIFF_BITS-1 downto 0);      -- Differenrence between both registers signatures  
+        conc_signature_diff_i : in std_logic_vector(CONC_SIGNATURE_DIFF_BITS-1 downto 0);     -- Differenrence between both instructions_conc signatures 
         -- Memory read
         addr_i    : in std_logic_vector(13 downto 0); --TODO: change it to adapt              -- Address to read the histograms
         -- Memory out

@@ -8,34 +8,38 @@ use bsc.diversity_components_pkg.all;
 
 entity diversity_quantifier_top is
     generic (
-        coding_method         : integer := 2;
-        coding_bits_reg       : integer := 64;
-        coding_bits_inst_sum  : integer := 7;
-        coding_bits_inst_conc : integer := 32;
-        regs_number           : integer := 5;
-        saved_inst            : integer := 6
+        coding_method         : integer := 2;   -- It can use parity, ECC or none to encode the instructions and registers writes
+        coding_bits_reg       : integer := 64;  -- Number of bits saved for each register read 
+        coding_bits_inst_sum  : integer := 7;   -- Number of bits saved for each instruction (sumation signature)
+        coding_bits_inst_conc : integer := 32;  -- Number of bits saved for each instruction (concatenation signature)
+        regs_number           : integer := 5;   -- Number of saved (last) register read to calculate the registers signature
+        saved_inst            : integer := 6    -- Number of saved (last) instructions to calculate the instruction signature
         );
     port (
         rstn           : in  std_ulogic;
         clk            : in  std_ulogic;
-        -- apb signals
+        -- APB signals --------------------------------------
         apbi_psel_i    : in  std_logic;                       
         apbi_paddr_i   : in  std_logic_vector(31 downto 0);                      
         apbi_penable_i : in  std_logic;                     
         apbi_pwrite_i  : in  std_logic;
         apbi_pwdata_i  : in  std_logic_vector(31 downto 0);                   
         apbo_prdata_o  : out std_logic_vector(31 downto 0);     
-        -- Singals to calculate sigantures
+        -----------------------------------------------------
+        -- Singals to calculate sigantures ------------------
         -- Instructions signature
-        instructions_i : in instruction_type_vector;
+        instructions_i : in instruction_type_vector;  -- Signals to calculate the instruction signature
         -- Registers signatures
-        registers_i : in register_type_vector;
+        registers_i : in register_type_vector;        -- Signals to calculate the registers signature
         -- hold signals
-        hold : in std_logic_vector(1 downto 0);
+        hold : in std_logic_vector(1 downto 0);       -- Signal that stalls the pipeline
+        -----------------------------------------------------
+        -- Signals to measure the staggering ----------------
         -- Instruction counters
         icnt1_i : in std_logic_vector(1 downto 0);
         icnt2_i : in std_logic_vector(1 downto 0);
-        logan_o : out std_logic_vector(189 downto 0)
+        -----------------------------------------------------
+        logan_o : out std_logic_vector(189 downto 0)  -- Signals that go into the integrated logic analyzer
      );
 end;
 
@@ -140,7 +144,7 @@ begin
             reg_signature_o        => reg_signature(n),
             inst_signature_sum_o   => inst_signature_sum(n),
             inst_signature_conc_o  => inst_signature_conc(n),
-            fifo_input_conc_o      => decode_fifo_input(n)
+            fifo_input_conc_o      => decode_fifo_input(n)    
             );
     end generate signature_calc_inst; 
 

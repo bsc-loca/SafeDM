@@ -14,7 +14,7 @@ entity signature_calculator is
         coding_bits_inst_conc : integer := 32;   -- Number of bits of each coded instruction (concatenation)
         regs_number           : integer := 32;   -- Number of registers in the signature
         saved_inst            : integer := 32;   -- Number of saved instructions
-        REG_SIG_PORT_BITS     : integer := 4;
+        REG_SIG_PORT_BITS     : integer := 4;    -- Number of bits of each file register read port
         REG_SIG_BITS          : integer := 32;   -- Number of bits for the register signature
         INST_SUM_SIG_BITS     : integer := 6;    -- Number of bits for the instructions signature (sumation)
         INST_CONC_SIG_BITS    : integer := 32    -- Number of bits for the instructions signature (concatenation) 
@@ -24,16 +24,16 @@ entity signature_calculator is
         clk    : in std_ulogic;
         enable : in std_logic;
         -- Hold signal
-        hold_i : in std_logic;
+        hold_i : in std_logic;                   -- Signal to stop the pipeline
         -- Instructions signature
         instructions_i : in instruction_type;    -- Core decode instructions signals
         -- Registers signatures
         registers_i : in register_type;          -- Core registers write signals
         -- Signatures
-        reg_signature_o       : out std_logic_vector(REG_SIG_BITS-1 downto 0);
-        inst_signature_sum_o  : out std_logic_vector(INST_SUM_SIG_BITS-1 downto 0);
-        inst_signature_conc_o : out std_logic_vector(INST_CONC_SIG_BITS-1 downto 0);
-        fifo_input_conc_o     : out std_logic_vector(coding_bits_inst_conc*2-1 downto 0)
+        reg_signature_o       : out std_logic_vector(REG_SIG_BITS-1 downto 0);            -- Signature from reading registers from the file register
+        inst_signature_sum_o  : out std_logic_vector(INST_SUM_SIG_BITS-1 downto 0);       -- Signature from instructions executed (summation of all the numerical values)
+        inst_signature_conc_o : out std_logic_vector(INST_CONC_SIG_BITS-1 downto 0);      -- Signature from instructions executed (concatenation of all the instructions)
+        fifo_input_conc_o     : out std_logic_vector(coding_bits_inst_conc*2-1 downto 0)  -- Executed instructructions stored in the FIFO (signal for the integrated logic analyzer)
      );
 end;
 
