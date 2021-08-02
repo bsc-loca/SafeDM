@@ -39,7 +39,10 @@ entity diversity_quantifier_top is
         icnt1_i : in std_logic_vector(1 downto 0);
         icnt2_i : in std_logic_vector(1 downto 0);
         -----------------------------------------------------
-        logan_o : out std_logic_vector(189 downto 0)  -- Signals that go into the integrated logic analyzer
+        diversity_lack_o : out std_logic;             -- It is set high when there is no diversity
+        logan_o : out std_logic_vector(189 downto 0); -- Signals that go into the integrated logic analyzer
+        -- To stall pipelines to force lack of diversity
+        stall_o : out std_logic_vector(1 downto 0)
      );
 end;
 
@@ -50,7 +53,8 @@ architecture rtl of diversity_quantifier_top is
     constant REG_SIG_BITS : integer := REG_SIG_PORT_BITS*4;
     constant INST_SUM_SIG_BITS : integer := integer(ceil(log2(real(((2 ** coding_bits_inst_sum)-1)*saved_inst*2))));
     constant INST_CONC_SIG_BITS : integer := coding_bits_inst_conc*saved_inst*2;
-    constant INST_SIG_REGISTERS : integer := saved_inst*2;
+    --constant INST_SIG_REGISTERS : integer := saved_inst*2;
+    constant READ_POSITIONS : integer := 7; -- Memory positions before the histsograms used to read statistics
     ---------------------------------------------------------------------------------------------------------------------
 
 
@@ -63,7 +67,6 @@ architecture rtl of diversity_quantifier_top is
 
     type inst_signature_conc_array is array (natural range <>) of std_logic_vector(INST_CONC_SIG_BITS-1 downto 0);
     signal inst_signature_conc   : inst_signature_conc_array(1 downto 0);
-    signal r_inst_signature_conc : inst_signature_conc_array(1 downto 0);
     ---------------------------------------------------------------------------------------------------------------------
 
     -- Signal and constant for the differences of the signatures --------------------------------------------------------
@@ -77,8 +80,10 @@ architecture rtl of diversity_quantifier_top is
     signal inst_signature_sum_diff, r_inst_signature_sum_diff : unsigned(INST_SUM_SIG_BITS-1  downto 0); -- The bits of the signatures are calculated thinking in the maximum posible difference
     ---------------------------------------------------------------------------------------------------------------------
 
-    -- instructions difference between cores
+    -- Instructions difference between cores
     signal inst_diff, r_inst_diff : std_logic_vector(31 downto 0);
+    -- Statistics
+    signal max_stag_core1, min_stag_core1, max_stag_core2, min_stag_core2,pass_counter, last_pass : std_logic_vector(31 downto 0);
 
     -- Histograms memorie signals
     signal histogram_read_addr : unsigned(13 downto 0);
@@ -98,7 +103,7 @@ architecture rtl of diversity_quantifier_top is
     -- APB bus ----------------------------------------------------------------------------------------------------------
     -- The number or registers can be changed but has to be bigger than 2 for the rest of the design to automatically adapt
     type registers_vector is array (natural range <>) of std_logic_vector(31 downto 0);
-    constant REGISTERS_NUMBER : integer := 6+2*INST_SIG_REGISTERS;
+    constant REGISTERS_NUMBER : integer := 4; -- 6+2*INST_SIG_REGISTERS;
     signal r, rin      : registers_vector(REGISTERS_NUMBER-1 downto 0) ;
     signal slave_index : unsigned(13 downto 0);
 
@@ -149,7 +154,7 @@ begin
     end generate signature_calc_inst; 
 
     -- In this process, the diference between the signatures of both cores are computed
-    process(reg_signature, inst_signature_sum, inst_signature_conc)
+    process(reg_signature, inst_signature_sum, inst_signature_conc, inst_signature_conc_diff, reg_signature_diff)
         variable temp_regs      : unsigned(REG_SIGNATURE_DIFF_BITS-1 downto 0);
         variable temp_inst_conc : unsigned(inst_signature_conc_diff'HIGH downto 0);
     begin
@@ -181,6 +186,14 @@ begin
             inst_signature_sum_diff <= unsigned(inst_signature_sum(1)) - unsigned(inst_signature_sum(0)); 
         end if;
 
+
+        -- LACK OF DIVERSITY OUTPUT
+        if unsigned(inst_signature_conc_diff) = 0  and unsigned(reg_signature_diff) = 0 then
+            diversity_lack_o <= '1';
+        else
+            diversity_lack_o <= '0';
+        end if;
+
     end process;
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -194,11 +207,23 @@ begin
     port map(
         rstn => internal_rstn, 
         clk  => clk, 
-        enable_core1_i      => cores_enable(0),
-        enable_core2_i      => cores_enable(1),
-        icnt1_i             => icnt1_i,
-        icnt2_i             => icnt2_i,
-        inst_diff_o         => inst_diff,
+        enable_core1_i    => cores_enable(0),
+        enable_core2_i    => cores_enable(1),
+        icnt1_i           => icnt1_i,
+        icnt2_i           => icnt2_i,
+        inst_diff_o       => inst_diff,
+        -- Remove diversity
+        remove_diversity_i => r(3),
+        -- Outputs for statistics
+        max_stag_core1_o  => max_stag_core1,    
+        min_stag_core1_o  => min_stag_core1,    
+        max_stag_core2_o  => max_stag_core2,    
+        min_stag_core2_o  => min_stag_core2,    
+        pass_counter_o    => pass_counter,  
+        last_pass_o       => last_pass,     
+        -- Stall outpus
+        stall_o => stall_o,
+        -- Outputs for LOGAN
         core1_ahead_core2_o => core1_ahead_core2,
         ex_inst_core1_o     => ex_inst_core1
         );
@@ -262,27 +287,23 @@ begin
                 r_reg_signature_diff       <= (others => '0');
                 r_inst_signature_conc_diff <= (others => '0');
                 r_enable                   <= '0';
-                -- For apb read
-                r_inst_signature_conc      <= (others => (others => '0'));
             else
                 r_inst_diff                <= inst_diff;
                 r_inst_signature_sum_diff  <= inst_signature_sum_diff;
                 r_reg_signature_diff       <= reg_signature_diff;
                 r_inst_signature_conc_diff <= inst_signature_conc_diff;
                 r_enable                   <= enable;
-                -- For apb read
-                r_inst_signature_conc      <= inst_signature_conc;
             end if;
         end if;
     end process;
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
     -- Logic analyzer input
-    logan_o <= core1_ahead_core2 &           -- 1
-               decode_fifo_input(1) &        -- 64
+    logan_o <= decode_fifo_input(1) &        -- 64
                decode_fifo_input(0) &        -- 64
-               hold &                        -- 2
                clk &                         -- 1
+               core1_ahead_core2 &           -- 1
+               hold &                        -- 2
                r_enable &                    -- 1
                reg_signature_diff &          -- 5
                inst_signature_conc_diff &    -- 4
@@ -304,9 +325,9 @@ begin
     slave_index <= unsigned(apbi_paddr_i(15 downto 2));
     -- The address to read from the histograms memory is also computed.
     -- From the third position onwards it drives the apb bus read address to the histograms memory address signal.
-    histogram_read_addr <= slave_index-REGISTERS_NUMBER; 
+    histogram_read_addr <= slave_index-REGISTERS_NUMBER-READ_POSITIONS; 
 
-    comb : process(rstn, apbi_penable_i, apbi_psel_i, apbi_pwrite_i, apbi_pwdata_i, slave_index, histogram_mem_out, r, r_inst_signature_conc, r_inst_diff, r_reg_signature_diff, r_inst_signature_conc_diff) is 
+    comb : process(rstn, apbi_penable_i, apbi_psel_i, apbi_pwrite_i, apbi_pwdata_i, slave_index, histogram_mem_out, r, max_stag_core1, max_stag_core2, min_stag_core1, min_stag_core2, pass_counter, last_pass, ex_inst_core1) is 
         variable v : registers_vector(REGISTERS_NUMBER-1 downto 0);
         variable slave_index_int : integer;
     begin
@@ -322,24 +343,49 @@ begin
         elsif (apbi_psel_i and apbi_pwrite_i) = '1' and slave_index = 2 then
             -- First bit reset
             v(slave_index_int) := apbi_pwdata_i;
+        elsif (apbi_psel_i and apbi_pwrite_i) = '1' and slave_index = 3 then
+            -- Instruction remove diversity
+            v(slave_index_int) := apbi_pwdata_i;
         end if;
         -- APB read -------------------------------------------------------------------------------
+        -- If memory positions are added chan READ_POSITIONS constant **************
         apbo_prdata_o <= (others => '0');
-        if (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = 3 then
-            -- Read instruction difference
-            apbo_prdata_o(r_inst_diff'LENGTH-1 downto 0) <= r_inst_diff;
-        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = 4 then
-            -- Read register signature difference
-            apbo_prdata_o(r_reg_signature_diff'LENGTH-1 downto 0) <= r_reg_signature_diff;
-        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = 5 then
-            -- Read instruction (conc) signature difference
-            apbo_prdata_o(r_inst_signature_conc_diff'LENGTH-1 downto 0) <= r_inst_signature_conc_diff;
-        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and (slave_index > 5) and (slave_index <= 5+INST_SIG_REGISTERS) then
-            -- Read instruction signature core1 (several registers)
-            apbo_prdata_o <= r_inst_signature_conc(0)(32*(slave_index_int-5)-1 downto 32*(slave_index_int-6));
-        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and (slave_index > 5+INST_SIG_REGISTERS) and (slave_index <= 5+2*INST_SIG_REGISTERS) then
-            -- Read instruction signature core2 (several registers)
-            apbo_prdata_o <= r_inst_signature_conc(1)(32*(slave_index_int-(5+INST_SIG_REGISTERS))-1 downto 32*(slave_index_int-(6+INST_SIG_REGISTERS)));
+        if (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER then
+            -- Read maximum staggering when the core1 is ahead
+            apbo_prdata_o <= max_stag_core1;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+1  then
+            -- Read minimum staggering when the core1 is ahead
+            apbo_prdata_o <= min_stag_core1;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+2 then
+            -- Read maximum staggering when the core2 is ahead
+            apbo_prdata_o <= max_stag_core2;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+3 then
+            -- Read minimum staggering when the core2 is ahead
+            apbo_prdata_o <= min_stag_core2;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+4 then
+            -- Read how many times the trail core becomes the head core
+            apbo_prdata_o <= pass_counter;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+5 then
+            -- Read the executed instructions the las time the trail core became the head core
+            apbo_prdata_o <= last_pass;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+6 then
+            -- Read the executed instructions the las time the trail core became the head core
+            apbo_prdata_o <= ex_inst_core1;
+        --if (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = 3 then
+        --    -- Read instruction difference
+        --    apbo_prdata_o(r_inst_diff'LENGTH-1 downto 0) <= r_inst_diff;
+        --elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = 4 then
+        --    -- Read register signature difference
+        --    apbo_prdata_o(r_reg_signature_diff'LENGTH-1 downto 0) <= r_reg_signature_diff;
+        --elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = 5 then
+        --    -- Read instruction (conc) signature difference
+        --    apbo_prdata_o(r_inst_signature_conc_diff'LENGTH-1 downto 0) <= r_inst_signature_conc_diff;
+        --elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and (slave_index > 5) and (slave_index <= 5+INST_SIG_REGISTERS) then
+        --    -- Read instruction signature core1 (several registers)
+        --    apbo_prdata_o <= r_inst_signature_conc(0)(32*(slave_index_int-5)-1 downto 32*(slave_index_int-6));
+        --elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and (slave_index > 5+INST_SIG_REGISTERS) and (slave_index <= 5+2*INST_SIG_REGISTERS) then
+        --    -- Read instruction signature core2 (several registers)
+        --    apbo_prdata_o <= r_inst_signature_conc(1)(32*(slave_index_int-(5+INST_SIG_REGISTERS))-1 downto 32*(slave_index_int-(6+INST_SIG_REGISTERS)));
         elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' then
             -- Read histograms
             apbo_prdata_o <= histogram_mem_out;

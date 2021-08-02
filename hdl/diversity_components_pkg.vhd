@@ -35,7 +35,10 @@ package diversity_components_pkg is
             -- Instruction counters
             icnt1_i : in std_logic_vector(1 downto 0);
             icnt2_i : in std_logic_vector(1 downto 0);
-            logan_o : out std_logic_vector(189 downto 0)
+            diversity_lack_o : out std_logic;
+            logan_o : out std_logic_vector(189 downto 0);
+            -- To stall pipelines to force lack of diversity
+            stall_o : out std_logic_vector(1 downto 0)
         );
     end component diversity_quantifier_top; 
 
@@ -126,13 +129,27 @@ package diversity_components_pkg is
 
     component inst_diff_calculator is
         port(
-            clk            : in  std_logic;                      
-            rstn           : in  std_logic;
-            enable_core1_i : in  std_logic;
-            enable_core2_i : in  std_logic;
-            icnt1_i        : in  std_logic_vector(1 downto 0);                  -- Instruction counter from the first core
-            icnt2_i        : in  std_logic_vector(1 downto 0);                  -- Instruction counter from the second core
-            inst_diff_o    : out std_logic_vector(31 downto 0);
+            clk               : in  std_logic;                      
+            rstn              : in  std_logic;
+            enable_core1_i    : in  std_logic;
+            enable_core2_i    : in  std_logic;
+            icnt1_i           : in  std_logic_vector(1 downto 0);                  -- Instruction counter from the first core
+            icnt2_i           : in  std_logic_vector(1 downto 0);                  -- Instruction counter from the second core
+            -- Signal to remove diversity
+            remove_diversity_i  : in  std_logic_vector(31 downto 0);               -- Number of executed instructions until remove diversity
+            --decode_pc1_i        : in  std_logic_vector(31 downto 0);               -- PC of core1
+            --decode_pc2_i        : in  std_logic_vector(31 downto 0);               -- PC of core2
+            -- Signal to staggering statistics
+            inst_diff_o       : out std_logic_vector(31 downto 0);
+            max_stag_core1_o  : out std_logic_vector(31 downto 0);                 -- Biggest staggering during the execution when core1 is ahead
+            min_stag_core1_o  : out std_logic_vector(31 downto 0);                 -- Smallest staggering during the execution when core1 is ahead
+            max_stag_core2_o  : out std_logic_vector(31 downto 0);                 -- Biggest staggering during the execution when core2 is ahead
+            min_stag_core2_o  : out std_logic_vector(31 downto 0);                 -- Smallest staggering during the execution when core2 is ahead
+            pass_counter_o    : out std_logic_vector(31 downto 0);                 -- Counts the number of times that the trail core passes the head core
+            last_pass_o       : out std_logic_vector(31 downto 0);                 -- The number of executed instructions by core1 when the trail core changed to head core the last time
+            -- Output to stall one of the cores to remove diversity
+            stall_o           : out std_logic_vector(1 downto 0);
+            -- LOGAN signals
             core1_ahead_core2_o : out std_logic;
             ex_inst_core1_o : out std_logic_vector(31 downto 0)
             );  
