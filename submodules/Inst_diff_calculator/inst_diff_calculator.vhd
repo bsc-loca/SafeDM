@@ -26,6 +26,7 @@ entity inst_diff_calculator is
         stall_o             : out std_logic_vector(1 downto 0);
         -- Outputs for LOGAN
         core1_ahead_core2_o : out std_logic;                                     -- Signal that goes into ILA (Integrated Logic Analyzer)
+        ex_inst_core2_o     : out std_logic_vector(31 downto 0);                 -- Signal that goes into ILA
         ex_inst_core1_o     : out std_logic_vector(31 downto 0)                  -- Signal that goes into ILA
         );  
 end;
@@ -164,7 +165,7 @@ begin
         end if;
     end process;
 
-    process(stall_fsm, remove_diversity_i, n_executed_inst1, n_executed_inst2, core1_ahead_core2, r_diversity_activated, r_executed_inst1)
+    process(stall_fsm, remove_diversity_i, n_executed_inst1, n_executed_inst2, core1_ahead_core2, r_diversity_activated, r_executed_inst1, r_executed_inst2)
     begin
         n_stall_fsm <= stall_fsm;
         stall <= "00";
@@ -202,6 +203,7 @@ begin
 
     -- Output to the Logic analyzer (LOGAN)
     ex_inst_core1_o <= std_logic_vector(r_executed_inst1);
+    ex_inst_core2_o <= std_logic_vector(r_executed_inst2);
     core1_ahead_core2_o <= core1_ahead_core2;
 
 

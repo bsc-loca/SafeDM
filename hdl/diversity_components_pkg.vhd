@@ -151,6 +151,7 @@ package diversity_components_pkg is
             stall_o           : out std_logic_vector(1 downto 0);
             -- LOGAN signals
             core1_ahead_core2_o : out std_logic;
+            ex_inst_core2_o : out std_logic_vector(31 downto 0);
             ex_inst_core1_o : out std_logic_vector(31 downto 0)
             );  
     end component inst_diff_calculator;

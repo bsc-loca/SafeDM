@@ -96,7 +96,7 @@ architecture rtl of diversity_quantifier_top is
     -- Logic analyzer (LOGAN)
     type decode_instructions is array (natural range <>) of std_logic_vector(63 downto 0);
     signal decode_fifo_input : decode_instructions(1 downto 0);
-    signal ex_inst_core1 : std_logic_vector(31 downto 0);
+    signal ex_inst_core1, ex_inst_core2 : std_logic_vector(31 downto 0);
     signal core1_ahead_core2 : std_logic;
     
 
@@ -225,6 +225,7 @@ begin
         stall_o => stall_o,
         -- Outputs for LOGAN
         core1_ahead_core2_o => core1_ahead_core2,
+        ex_inst_core2_o     => ex_inst_core2,
         ex_inst_core1_o     => ex_inst_core1
         );
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -369,8 +370,11 @@ begin
             -- Read the executed instructions the las time the trail core became the head core
             apbo_prdata_o <= last_pass;
         elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+6 then
-            -- Read the executed instructions the las time the trail core became the head core
+            -- Read the executed instructions by core1
             apbo_prdata_o <= ex_inst_core1;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+7 then
+            -- Read the executed instructions by core2
+            apbo_prdata_o <= ex_inst_core2;
         --if (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = 3 then
         --    -- Read instruction difference
         --    apbo_prdata_o(r_inst_diff'LENGTH-1 downto 0) <= r_inst_diff;
