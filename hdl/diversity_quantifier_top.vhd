@@ -38,9 +38,13 @@ entity diversity_quantifier_top is
         -- Instruction counters
         icnt1_i : in std_logic_vector(1 downto 0);
         icnt2_i : in std_logic_vector(1 downto 0);
+        -- Signals to measure the hold times in the bus
+        wbuffer_full_i : in std_logic_vector(1 downto 0);
+        dcmiss_pend_i  : in std_logic_vector(1 downto 0);
+        icmiss_pend_i  : in std_logic_vector(1 downto 0);
         -----------------------------------------------------
         diversity_lack_o : out std_logic;             -- It is set high when there is no diversity
-        logan_o : out std_logic_vector(189 downto 0); -- Signals that go into the integrated logic analyzer
+        logan_o : out std_logic_vector(264 downto 0); -- Signals that go into the integrated logic analyzer
         -- To stall pipelines to force lack of diversity
         stall_o : out std_logic_vector(1 downto 0)
      );
@@ -54,7 +58,7 @@ architecture rtl of diversity_quantifier_top is
     constant INST_SUM_SIG_BITS : integer := integer(ceil(log2(real(((2 ** coding_bits_inst_sum)-1)*saved_inst*2))));
     constant INST_CONC_SIG_BITS : integer := coding_bits_inst_conc*saved_inst*2;
     --constant INST_SIG_REGISTERS : integer := saved_inst*2;
-    constant READ_POSITIONS : integer := 7; -- Memory positions before the histsograms used to read statistics
+    constant READ_POSITIONS : integer := 22; -- Memory positions before the histsograms used to read statistics
     ---------------------------------------------------------------------------------------------------------------------
 
 
@@ -84,6 +88,10 @@ architecture rtl of diversity_quantifier_top is
     signal inst_diff, r_inst_diff : std_logic_vector(31 downto 0);
     -- Statistics
     signal max_stag_core1, min_stag_core1, max_stag_core2, min_stag_core2,pass_counter, last_pass : std_logic_vector(31 downto 0);
+    signal cycles_wbuff_full1, cycles_dcmiss1, cycles_icmiss1, cycles_hold1 : std_logic_vector(31 downto 0);
+    signal cycles_wbuff_full2, cycles_dcmiss2, cycles_icmiss2, cycles_hold2 : std_logic_vector(31 downto 0);
+    signal wbfull_count1, wbfull_count2, dcmiss_count1, dcmiss_count2, icmiss_count1, icmiss_count2 : std_logic_vector(31 downto 0);
+    signal cycles_wbuff_diff, cycles_dcmiss_diff, cycles_icmiss_diff : signed(14 downto 0);
 
     -- Histograms memorie signals
     signal histogram_read_addr : unsigned(13 downto 0);
@@ -214,6 +222,11 @@ begin
         inst_diff_o       => inst_diff,
         -- Remove diversity
         remove_diversity_i => r(3),
+        -- Inputs for statistics
+        wbuffer_full_i =>  wbuffer_full_i,
+        dcmiss_pend_i  =>  dcmiss_pend_i, 
+        icmiss_pend_i  =>  icmiss_pend_i,
+        hold_i         =>  hold,             
         -- Outputs for statistics
         max_stag_core1_o  => max_stag_core1,    
         min_stag_core1_o  => min_stag_core1,    
@@ -221,6 +234,20 @@ begin
         min_stag_core2_o  => min_stag_core2,    
         pass_counter_o    => pass_counter,  
         last_pass_o       => last_pass,     
+        cycles_wbuff_full1_o => cycles_wbuff_full1,
+        cycles_wbuff_full2_o => cycles_wbuff_full2,
+        cycles_dcmiss1_o     => cycles_dcmiss1,  
+        cycles_dcmiss2_o     => cycles_dcmiss2,  
+        cycles_icmiss1_o     => cycles_icmiss1, 
+        cycles_icmiss2_o     => cycles_icmiss2, 
+        cycles_hold1_o       => cycles_hold1,   
+        cycles_hold2_o       => cycles_hold2,   
+        wbfull_count1_o =>  wbfull_count1, 
+        wbfull_count2_o =>  wbfull_count2,
+        dcmiss_count1_o =>  dcmiss_count1,
+        dcmiss_count2_o =>  dcmiss_count2,
+        icmiss_count1_o =>  icmiss_count1,
+        icmiss_count2_o =>  icmiss_count2,
         -- Stall outpus
         stall_o => stall_o,
         -- Outputs for LOGAN
@@ -298,19 +325,27 @@ begin
         end if;
     end process;
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+    
+    cycles_wbuff_diff  <= signed('0' & cycles_wbuff_full2(13 downto 0)) - signed('0' & cycles_wbuff_full1(13 downto 0));
+    cycles_dcmiss_diff <= signed('0' & cycles_dcmiss2(13 downto 0)) - signed('0' & cycles_dcmiss1(13 downto 0));
+    cycles_icmiss_diff <= signed('0' & cycles_icmiss2(13 downto 0)) - signed('0' & cycles_icmiss1(13 downto 0));
     -- Logic analyzer input
-    logan_o <= decode_fifo_input(1) &        -- 64
-               decode_fifo_input(0) &        -- 64
-               clk &                         -- 1
-               core1_ahead_core2 &           -- 1
-               hold &                        -- 2
-               r_enable &                    -- 1
-               reg_signature_diff &          -- 5
-               inst_signature_conc_diff &    -- 4
-               ex_inst_core1 &               -- 32
-               inst_diff(15 downto 0);       -- 16
-                                             -- Total 190 bits
+    logan_o <= wbfull_count2(14 downto 0) &               -- 15
+               wbfull_count1(14 downto 0) &               -- 15
+               std_logic_vector(cycles_wbuff_diff )  &    -- 15
+               std_logic_vector(cycles_dcmiss_diff)  &    -- 15
+               std_logic_vector(cycles_icmiss_diff)  &    -- 15
+               decode_fifo_input(1) &                     -- 64
+               decode_fifo_input(0) &                     -- 64
+               clk &                                      -- 1
+               core1_ahead_core2 &                        -- 1
+               hold &                                     -- 2
+               r_enable &                                 -- 1
+               reg_signature_diff &                       -- 5
+               inst_signature_conc_diff &                 -- 4
+               ex_inst_core1 &                            -- 32
+               inst_diff(15 downto 0);                    -- 16
+                                                          -- Total 265 bits
 
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
     -- APB BUS HANDLE ------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -328,7 +363,7 @@ begin
     -- From the third position onwards it drives the apb bus read address to the histograms memory address signal.
     histogram_read_addr <= slave_index-REGISTERS_NUMBER-READ_POSITIONS; 
 
-    comb : process(rstn, apbi_penable_i, apbi_psel_i, apbi_pwrite_i, apbi_pwdata_i, slave_index, histogram_mem_out, r, max_stag_core1, max_stag_core2, min_stag_core1, min_stag_core2, pass_counter, last_pass, ex_inst_core1) is 
+    comb : process(rstn, apbi_penable_i, apbi_psel_i, apbi_pwrite_i, apbi_pwdata_i, slave_index, histogram_mem_out, r, max_stag_core1, max_stag_core2, min_stag_core1, min_stag_core2, pass_counter, last_pass, ex_inst_core1, ex_inst_core2, cycles_wbuff_full1, cycles_dcmiss1, cycles_icmiss1, cycles_hold1, cycles_wbuff_full2, cycles_dcmiss2, cycles_icmiss2, cycles_hold2, wbfull_count1, wbfull_count2, dcmiss_count1, dcmiss_count2, icmiss_count1, icmiss_count2) is 
         variable v : registers_vector(REGISTERS_NUMBER-1 downto 0);
         variable slave_index_int : integer;
     begin
@@ -375,6 +410,48 @@ begin
         elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+7 then
             -- Read the executed instructions by core2
             apbo_prdata_o <= ex_inst_core2;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+8 then
+            -- Read the number of cycles that the write buffer has been full
+            apbo_prdata_o <= cycles_wbuff_full1;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+9 then
+            -- Read the number of cycles that the write buffer has been full
+            apbo_prdata_o <= cycles_wbuff_full2;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+10 then
+            -- Read the number of cycles that the pipeline has been hold due to data cache miss
+            apbo_prdata_o <= cycles_dcmiss1;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+11 then
+            -- Read the number of cycles that the pipeline has been hold due to data cache miss
+            apbo_prdata_o <= cycles_dcmiss2;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+12 then
+            -- Read the number of cycles that the pipeline has been hold due to instruction cache miss
+            apbo_prdata_o <= cycles_icmiss1;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+13 then
+            -- Read the number of cycles that the pipeline has been hold due to instruction cache miss
+            apbo_prdata_o <= cycles_icmiss2;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+14 then
+            -- Read the number of cycles that the pipeline has been hold
+            apbo_prdata_o <= cycles_hold1;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+15 then
+            -- Read the number of cycles that the pipeline has been hold
+            apbo_prdata_o <= cycles_hold2;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+16 then
+            -- Number of times that the write buffer gets full
+            apbo_prdata_o <= wbfull_count1;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+17 then
+            -- Number of times that the write buffer gets full
+            apbo_prdata_o <= wbfull_count2;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+18 then
+            -- Number of data cache misses
+            apbo_prdata_o <= dcmiss_count1;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+19 then
+            -- Number of data cache misses
+            apbo_prdata_o <= dcmiss_count2;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+20 then
+            -- Number of instruction cache misses
+            apbo_prdata_o <= icmiss_count1;
+        elsif (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER+READ_POSITIONS-1 then
+            -- Number of instruction cache misses
+            apbo_prdata_o <= icmiss_count2;
         --if (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = 3 then
         --    -- Read instruction difference
         --    apbo_prdata_o(r_inst_diff'LENGTH-1 downto 0) <= r_inst_diff;

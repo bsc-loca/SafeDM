@@ -13,21 +13,38 @@ entity inst_diff_calculator is
         inst_diff_o         : out std_logic_vector(31 downto 0);                 -- Difference of instructions between both cores (staggering)
         -- Signal to remove diversity
         remove_diversity_i  : in  std_logic_vector(31 downto 0);                 -- Number of executed instructions until remove diversity
-        --decode_pc1_i        : in  std_logic_vector(31 downto 0);                 -- PC of core1
-        --decode_pc2_i        : in  std_logic_vector(31 downto 0);                 -- PC of core2
+        -- Inputs for statistics
+        wbuffer_full_i      : in  std_logic_vector(1 downto 0);                  -- high when pipeline hold due to write buffer full
+        dcmiss_pend_i       : in  std_logic_vector(1 downto 0);                  -- high when pipeline hold due to a data cache miss
+        icmiss_pend_i       : in  std_logic_vector(1 downto 0);                  -- high when pipeline hold due to a instruction cache miss
+        hold_i              : in  std_logic_vector(1 downto 0);                  -- high when pipeline hold 
         -- Outputs for statistics
-        max_stag_core1_o    : out std_logic_vector(31 downto 0);                 -- Biggest staggering during the execution when core1 is ahead
-        min_stag_core1_o    : out std_logic_vector(31 downto 0);                 -- Smallest staggering during the execution when core1 is ahead
-        max_stag_core2_o    : out std_logic_vector(31 downto 0);                 -- Biggest staggering during the execution when core2 is ahead
-        min_stag_core2_o    : out std_logic_vector(31 downto 0);                 -- Smallest staggering during the execution when core2 is ahead
-        pass_counter_o      : out std_logic_vector(31 downto 0);                 -- Counts the number of times that the trail core passes the head core
-        last_pass_o         : out std_logic_vector(31 downto 0);                 -- The number of executed instructions by core1 when the trail core changed to head core the last time
+        max_stag_core1_o     : out std_logic_vector(31 downto 0);                 -- Biggest staggering during the execution when core1 is ahead
+        min_stag_core1_o     : out std_logic_vector(31 downto 0);                 -- Smallest staggering during the execution when core1 is ahead
+        max_stag_core2_o     : out std_logic_vector(31 downto 0);                 -- Biggest staggering during the execution when core2 is ahead
+        min_stag_core2_o     : out std_logic_vector(31 downto 0);                 -- Smallest staggering during the execution when core2 is ahead
+        pass_counter_o       : out std_logic_vector(31 downto 0);                 -- Counts the number of times that the trail core passes the head core
+        last_pass_o          : out std_logic_vector(31 downto 0);                 -- The number of executed instructions by core1 when the trail core changed to head core the last time
+        ex_inst_core1_o      : out std_logic_vector(31 downto 0);                 -- Number of instructions executed by core1
+        ex_inst_core2_o      : out std_logic_vector(31 downto 0);                 -- Number of instructions executed by core2
+        cycles_wbuff_full1_o : out std_logic_vector(31 downto 0);                 -- Number of cycles that the write buffer is full
+        cycles_wbuff_full2_o : out std_logic_vector(31 downto 0);                 -- Number of cycles that the write buffer is full
+        cycles_dcmiss1_o     : out std_logic_vector(31 downto 0);                 -- Number of cycles that the pipeline is hold due to a data cache miss
+        cycles_dcmiss2_o     : out std_logic_vector(31 downto 0);                 -- Number of cycles that the pipeline is hold due to a data cache miss
+        cycles_icmiss1_o     : out std_logic_vector(31 downto 0);                 -- Number of cycles that the pipeline is hold due to a instruction cache miss
+        cycles_icmiss2_o     : out std_logic_vector(31 downto 0);                 -- Number of cycles that the pipeline is hold due to a instruction cache miss
+        cycles_hold1_o       : out std_logic_vector(31 downto 0);                 -- Number of cycles that the pipeline is hold
+        cycles_hold2_o       : out std_logic_vector(31 downto 0);                 -- Number of cycles that the pipeline is hold
+        wbfull_count1_o      : out std_logic_vector(31 downto 0);                 -- Times the write buffer gets full
+        wbfull_count2_o      : out std_logic_vector(31 downto 0);                 -- Times the write buffer gets full
+        dcmiss_count1_o     : out std_logic_vector(31 downto 0);                 -- Number of data cache misses
+        dcmiss_count2_o     : out std_logic_vector(31 downto 0);                 -- Number of data cache misses
+        icmiss_count1_o     : out std_logic_vector(31 downto 0);                 -- Number of instruction cache misses
+        icmiss_count2_o     : out std_logic_vector(31 downto 0);                 -- Number of instruction cache misses
         -- Output to stall one of the cores to remove diversity
         stall_o             : out std_logic_vector(1 downto 0);
         -- Outputs for LOGAN
-        core1_ahead_core2_o : out std_logic;                                     -- Signal that goes into ILA (Integrated Logic Analyzer)
-        ex_inst_core2_o     : out std_logic_vector(31 downto 0);                 -- Signal that goes into ILA
-        ex_inst_core1_o     : out std_logic_vector(31 downto 0)                  -- Signal that goes into ILA
+        core1_ahead_core2_o : out std_logic                                     -- Signal that goes into ILA (Integrated Logic Analyzer)
         );  
 end;
 
@@ -42,6 +59,11 @@ architecture rtl of inst_diff_calculator is
     signal r_max_stag_core1, r_min_stag_core1, r_max_stag_core2, r_min_stag_core2 : unsigned(31 downto 0); 
     signal r_pass_counter, r_last_pass : unsigned(31 downto 0); 
     signal r_core1_ahead_core2 : std_logic;
+    signal r_cycles_wbuff_full1, r_cycles_dcmiss1, r_cycles_icmiss1, r_cycles_hold1 : unsigned(31 downto 0);    
+    signal r_cycles_wbuff_full2, r_cycles_dcmiss2, r_cycles_icmiss2, r_cycles_hold2 : unsigned(31 downto 0);    
+    signal r_wbuffer_full_i, r_dcmiss_pend_i, r_icmiss_pend_i, r_hold_i : std_logic_vector(1 downto 0); --Registers to calculate flanks       
+    signal r_wbfull_count1, r_wbfull_count2, r_dcmiss_count1, r_dcmiss_count2, r_icmiss_count1, r_icmiss_count2 : unsigned(31 downto 0);
+
     -- FSM to remove diversity (make both cores execute the same instructions at the same time)
     signal stall : std_logic_vector(1 downto 0);
     type state_type is (not_stalled, stalled); -- Define the states 
@@ -200,6 +222,106 @@ begin
         end case;
     end process;
 
+
+
+    -- Pipeline hold statistics
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            if rstn = '0' then
+                r_wbuffer_full_i <= "00";   
+                r_dcmiss_pend_i  <= "00"; 
+                r_icmiss_pend_i  <= "00";
+                -- Cycle count
+                r_cycles_wbuff_full1 <= (others => '0');
+                r_cycles_wbuff_full2 <= (others => '0');
+                r_cycles_dcmiss1     <= (others => '0'); 
+                r_cycles_dcmiss2     <= (others => '0'); 
+                r_cycles_icmiss1     <= (others => '0');
+                r_cycles_icmiss2     <= (others => '0');
+                r_cycles_hold1       <= (others => '0');
+                r_cycles_hold2       <= (others => '0');
+                -- Occurrencies count
+                r_wbfull_count1 <= (others => '0');
+                r_wbfull_count2 <= (others => '0');
+                r_dcmiss_count1 <= (others => '0');
+                r_dcmiss_count2 <= (others => '0');
+                r_icmiss_count1 <= (others => '0');
+                r_icmiss_count2 <= (others => '0');
+            else
+                r_wbuffer_full_i <= wbuffer_full_i;
+                r_dcmiss_pend_i  <= dcmiss_pend_i; 
+                r_icmiss_pend_i  <= icmiss_pend_i; 
+                if enable_core1_i = '1' then     
+                    -- Cycle count
+                    if wbuffer_full_i(0) = '1' then
+                        r_cycles_wbuff_full1 <= r_cycles_wbuff_full1 + 1;
+                    end if;
+                    if dcmiss_pend_i(0)  = '1' then
+                        r_cycles_dcmiss1 <= r_cycles_dcmiss1 + 1;
+                    end if;
+                    if icmiss_pend_i(0)  = '1' then
+                        r_cycles_icmiss1 <= r_cycles_icmiss1 + 1;
+                    end if;
+                    if hold_i(0)           = '1' then
+                        r_cycles_hold1 <= r_cycles_hold1 + 1;
+                    end if;
+                    -- Occurrencies count
+                    if wbuffer_full_i(0) = '1' and r_wbuffer_full_i(0) = '0' then
+                        r_wbfull_count1 <= r_wbfull_count1 + 1;
+                    end if;
+                    if dcmiss_pend_i(0) = '1' and r_dcmiss_pend_i(0) = '0' then
+                        r_dcmiss_count1 <= r_dcmiss_count1 + 1;
+                    end if;
+                    if icmiss_pend_i(0) = '1' and r_icmiss_pend_i(0) = '0' then
+                        r_icmiss_count1 <= r_icmiss_count1 + 1;
+                    end if;
+                end if;
+                if enable_core2_i = '1' then     
+                    -- Cycle count
+                    if wbuffer_full_i(1) = '1' then
+                        r_cycles_wbuff_full2 <= r_cycles_wbuff_full2 + 1;
+                    end if;
+                    if dcmiss_pend_i(1)  = '1' then
+                        r_cycles_dcmiss2 <= r_cycles_dcmiss2 + 1;
+                    end if;
+                    if icmiss_pend_i(1)  = '1' then
+                        r_cycles_icmiss2 <= r_cycles_icmiss2 + 1;
+                    end if;
+                    if hold_i(1)           = '1' then
+                        r_cycles_hold2 <= r_cycles_hold2 + 1;
+                    end if;
+                    -- Occurrencies count
+                    if wbuffer_full_i(1) = '1' and r_wbuffer_full_i(1) = '0' then
+                        r_wbfull_count2 <= r_wbfull_count2 + 1;
+                    end if;
+                    if dcmiss_pend_i(1) = '1' and r_dcmiss_pend_i(1) = '0' then
+                        r_dcmiss_count2 <= r_dcmiss_count2 + 1;
+                    end if;
+                    if icmiss_pend_i(1) = '1' and r_icmiss_pend_i(1) = '0' then
+                        r_icmiss_count2 <= r_icmiss_count2 + 1;
+                    end if;
+                end if;
+            end if;
+        end if;
+    end process;
+
+    -- Cycle count
+    cycles_wbuff_full1_o <= std_logic_vector(r_cycles_wbuff_full1);
+    cycles_wbuff_full2_o <= std_logic_vector(r_cycles_wbuff_full2);
+    cycles_dcmiss1_o     <= std_logic_vector(r_cycles_dcmiss1); 
+    cycles_dcmiss2_o     <= std_logic_vector(r_cycles_dcmiss2); 
+    cycles_icmiss1_o     <= std_logic_vector(r_cycles_icmiss1);
+    cycles_icmiss2_o     <= std_logic_vector(r_cycles_icmiss2);
+    cycles_hold1_o       <= std_logic_vector(r_cycles_hold1);
+    cycles_hold2_o       <= std_logic_vector(r_cycles_hold2);
+    -- Occurrencies count
+    wbfull_count1_o  <= std_logic_vector(r_wbfull_count1); 
+    wbfull_count2_o  <= std_logic_vector(r_wbfull_count2); 
+    dcmiss_count1_o <= std_logic_vector(r_dcmiss_count1);
+    dcmiss_count2_o <= std_logic_vector(r_dcmiss_count2);
+    icmiss_count1_o <= std_logic_vector(r_icmiss_count1);
+    icmiss_count2_o <= std_logic_vector(r_icmiss_count2);
 
     -- Output to the Logic analyzer (LOGAN)
     ex_inst_core1_o <= std_logic_vector(r_executed_inst1);
