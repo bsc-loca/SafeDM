@@ -34,19 +34,7 @@ package diversity_components_pkg is
         -- hold signals
         hold : in std_logic_vector(1 downto 0);       -- Signal that stalls the pipeline
         -----------------------------------------------------
-        -- Signals to measure the staggering ----------------
-        -- Instruction counters
-        icnt1_i : in std_logic_vector(1 downto 0);
-        icnt2_i : in std_logic_vector(1 downto 0);
-        -- Signals to measure the hold times in the bus
-        wbuffer_full_i : in std_logic_vector(1 downto 0);
-        dcmiss_pend_i  : in std_logic_vector(1 downto 0);
-        icmiss_pend_i  : in std_logic_vector(1 downto 0);
-        -----------------------------------------------------
-        diversity_lack_o : out std_logic;             -- It is set high when there is no diversity
-        logan_o : out std_logic_vector(264 downto 0); -- Signals that go into the integrated logic analyzer
-        -- To stall pipelines to force lack of diversity
-        stall_o : out std_logic_vector(1 downto 0)
+        diversity_lack_o : out std_logic              -- It is set high when there is no diversity
      );
     end component diversity_quantifier_top; 
 

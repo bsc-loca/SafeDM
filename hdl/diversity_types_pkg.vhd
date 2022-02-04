@@ -18,7 +18,7 @@ package diversity_types_pkg is
 
     -- Types for registers signature ------------------------------------------------
     type value_port_vector  is array (ports_number-1 downto 0) of std_logic_vector(63 downto 0);
-    type addr_vector  is array (natural range <>) of std_logic_vector(4 downto 0);
+    --type addr_vector  is array (natural range <>) of std_logic_vector(4 downto 0);
     type register_type is record
         value : value_port_vector;                          -- value of the register
         ren   : std_logic_vector(ports_number-1 downto 0);  -- It is 1 when the register is read (1 bit for each read port)
