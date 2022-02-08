@@ -1,10 +1,10 @@
 # Test-bench
 
-This folder contains all the files needed to execute a test bench for the SafeDE module. The file `apb_lightlock_tb.vhd` is the top VHDL design. In this file the top of SafeDE is instantiated and all its inputs are simulated.
+This folder contains all the files needed to execute a test bench for the SafeDM module. The file `apb_SafeDM_tb.vhd` is the top VHDL design. In this file the top of SafeDM is instantiated and all its inputs are simulated.
 
-In the `inst_count_sim.vhd` file, a component that randomly generates the `inct` inputs of SafeDE is defined. All the statistics that the SafeDE module calculates are also derived in the top `apb_lightlock_tb.vhd`, and later they are compared with those read from the SafeDE module through the APB bus. 
+In the `input_sim.vhd` file, a component that randomly generates the inputs for SafeDM (instructions and registers) is defined. The input_sim module also have two inputs for synchronizing the simulated registers and instructions as if both cores where executing the same.
 
-The test-bench passes provided that all the results read from the bus coincide with those calculated in the top. And also if the staggering keeps at every moment within the expected limits.
+The test-bench passes provided that the cycles where there is lack of diversity coincides more or less with the cycles in which both synchronization (registers and instructions) signals where high.
 
 
 

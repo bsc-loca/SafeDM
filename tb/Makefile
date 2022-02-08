@@ -2,25 +2,26 @@
 #Traces of the simulation are stored in vsim.wlf when Questa is launched with the gui (vsim-launch)
 
 hdl=../hdl
+signature_calculator=../hdl/submodules/Signature_calculator
 
 #Compiles the files and creates the library safety
 compile:
-	vlib safety
-	mkdir -p safety
-	vmap safety safety
-	vcom -work safety $(hdl)/lightlock_pkg.vhd $(hdl)/apb_lightlock.vhd $(hdl)/staggering/staggering_handler.vhd
-	vcom $(hdl)/lightlock_pkg.vhd $(hdl)/apb_lightlock.vhd $(hdl)/lightlock_pkg.vhd $(hdl)/staggering/staggering_handler.vhd apb_lightlock_tb.vhd inst_count_sim.vhd
+	vlib bsc
+	mkdir -p bsc
+	vmap bsc bsc
+	vcom -work bsc $(hdl)/diversity_types_pkg.vhd $(hdl)/diversity_components_pkg.vhd $(hdl)/diversity_quantifier_top.vhd  $(signature_calculator)/fifo_instructions.vhd $(signature_calculator)/mem_regs_sign.vhd $(signature_calculator)/signature_calculator.vhd
+	vcom $(hdl)/diversity_components_pkg.vhd $(hdl)/diversity_quantifier_top.vhd $(hdl)/diversity_types_pkg.vhd $(signature_calculator)/fifo_instructions.vhd $(signature_calculator)/mem_regs_sign.vhd $(signature_calculator)/signature_calculator.vhd input_sim.vhd apb_SafeDM_tb.vhd 
 
 
 #Launches the simulation with the graphical interface
 vsim-launch: compile
 	#vsim -voptargs=+acc apb_lightlock_tb -do "do wave.do" -do "run 21 us"
-	vsim -voptargs=+acc apb_lightlock_tb -do "do wave.do" -do "run -all"
+	vsim -voptargs=+acc apb_SafeDM_tb -do "do wave.do" -do "run -all"
 
 #Launches the simulation in batch mode
 vsim: compile
 	#vsim -voptargs=+acc apb_lightlock_tb -do "run 21 us" <<! 
-	vsim -voptargs=+acc apb_lightlock_tb -do "run -all" <<! 
+	vsim -voptargs=+acc apb_SafeDM_tb -do "run -all" <<! 
     
 #Analyzes the results of the simulation
 launch-tb : vsim
@@ -36,7 +37,7 @@ launch-tb : vsim
 
 #Cleans the temporal files
 clean:
-	rm -rf safety
+	rm -rf bsc
 	rm -rf work
 	rm -f modelsim.ini
 	rm -f transcript

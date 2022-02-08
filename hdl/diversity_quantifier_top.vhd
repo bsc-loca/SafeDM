@@ -23,7 +23,6 @@ entity diversity_quantifier_top is
         apbi_penable_i : in  std_logic;                     
         apbi_pwrite_i  : in  std_logic;
         apbi_pwdata_i  : in  std_logic_vector(31 downto 0);                   
-        apbo_prdata_o  : out std_logic_vector(31 downto 0);     
         -----------------------------------------------------
         -- Singals to calculate sigantures ------------------
         -- Instructions signature
@@ -33,6 +32,7 @@ entity diversity_quantifier_top is
         -- hold signals
         hold : in std_logic_vector(1 downto 0);       -- Signal that stalls the pipeline
         -----------------------------------------------------
+        apbo_prdata_o  : out std_logic_vector(31 downto 0);     
         diversity_lack_o : out std_logic             -- It is set high when there is no diversity
      );
 end;
@@ -56,9 +56,10 @@ architecture rtl of diversity_quantifier_top is
     ---------------------------------------------------------------------------------------------------------------------
 
     -- Enable signals
-    signal enable, r_enable : std_logic;
+    signal enable : std_logic;
 
     -- Diversity lack count
+    signal diversity_lack : std_logic;
     signal diversity_lack_count : unsigned(31 downto 0);
 
     -- APB bus ----------------------------------------------------------------------------------------------------------
@@ -69,8 +70,8 @@ architecture rtl of diversity_quantifier_top is
     signal slave_index : unsigned(13 downto 0);
 
     -- soft reset through APB bus
-    signal soft_rstn : std_ulogic;
-    signal internal_rstn : std_ulogic;
+    signal soft_rstn, r_soft_rstn : std_logic;
+    signal internal_rstn : std_logic;
     ---------------------------------------------------------------------------------------------------------------------
 
 begin
@@ -114,11 +115,12 @@ begin
     begin
         -- LACK OF DIVERSITY OUTPUT
         if inst_signature_conc(0) = inst_signature_conc(1) and reg_signature(0) = reg_signature(1) then
-            diversity_lack_o <= '1';
+            diversity_lack <= '1';
         else
-            diversity_lack_o <= '0';
+            diversity_lack <= '0';
         end if;
     end process;
+    diversity_lack_o <= diversity_lack and enable;
 
     -- Count how many cycles there has been lack of diversity
     process(clk)
@@ -127,7 +129,9 @@ begin
             if rstn = '0' then
                 diversity_lack_count <= (others => '0');
             else 
-                diversity_lack_count <= diversity_lack_count + 1;
+                if diversity_lack = '1' and enable = '1' then
+                    diversity_lack_count <= diversity_lack_count + 1;
+                end if;
             end if;
         end if;
     end process;
@@ -142,13 +146,16 @@ begin
     -- The last register is for the soft reset
     regs : process(clk)
     begin
-        if rising_edge(clk) then r <= rin; end if;
+        if rising_edge(clk) then 
+            r <= rin; 
+            r_soft_rstn <= soft_rstn;
+        end if;
     end process;
 
     -- The salve index is computed from the apb address
     slave_index <= unsigned(apbi_paddr_i(15 downto 2));
 
-    comb : process(rstn, apbi_penable_i, apbi_psel_i, apbi_pwrite_i, apbi_pwdata_i, slave_index, r) is 
+    comb : process(rstn, apbi_penable_i, apbi_psel_i, apbi_pwrite_i, apbi_pwdata_i, slave_index, r, diversity_lack_count) is 
         variable v : registers_vector(REGISTERS_NUMBER-1 downto 0);
         variable slave_index_int : integer;
     begin
@@ -156,20 +163,21 @@ begin
         v := r;
         -- Write registers -------------------------------------------------------------- 
         if (apbi_psel_i and apbi_pwrite_i) = '1' and slave_index = 0 then
-            -- First core enable
+            -- Soft reset
             v(slave_index_int) := apbi_pwdata_i;
         elsif (apbi_psel_i and apbi_pwrite_i) = '1' and slave_index = 1 then
-            -- Second core enable
+            -- Enable
             v(slave_index_int) := apbi_pwdata_i;
         end if;
         -- APB read -------------------------------------------------------------------------------
         -- Read register containing the cycles that there has been lack of diversity
-        apbo_prdata_o <= (others => '0');
         if (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER then
-            -- TODO
             apbo_prdata_o <= std_logic_vector(diversity_lack_count);
+        else
+            apbo_prdata_o <= (others => '0');
         end if;
         -------------------------------------------------------------------------------------------
+
 
         -- update registers
         if rstn = '0' then
@@ -185,8 +193,8 @@ begin
         soft_rstn <= not v(0)(0);
     end process;
     -- If soft reset or regular reset is risen, all component resets
-    internal_rstn <= soft_rstn and rstn;
-    -- Core enables
+    internal_rstn <= r_soft_rstn and rstn;
+    -- Enable
     enable <= r(1)(0);
     ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

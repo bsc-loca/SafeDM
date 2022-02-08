@@ -10,7 +10,6 @@ package diversity_components_pkg is
     generic (
         coding_method         : integer := 2;   -- It can use parity, ECC or none to encode the instructions and registers writes
         coding_bits_reg       : integer := 64;  -- Number of bits saved for each register read 
-        coding_bits_inst_sum  : integer := 7;   -- Number of bits saved for each instruction (sumation signature)
         coding_bits_inst_conc : integer := 32;  -- Number of bits saved for each instruction (concatenation signature)
         regs_number           : integer := 5;   -- Number of saved (last) register read to calculate the registers signature
         saved_inst            : integer := 6    -- Number of saved (last) instructions to calculate the instruction signature
@@ -43,13 +42,11 @@ package diversity_components_pkg is
         generic (
             coding_method         : integer := 1;
             coding_bits_reg       : integer := 1;
-            coding_bits_inst_sum  : integer := 1;
             coding_bits_inst_conc : integer := 32;
             regs_number           : integer := 32;
             saved_inst            : integer := 32;
             REG_SIG_PORT_BITS     : integer := 4;
             REG_SIG_BITS          : integer := 32;
-            INST_SUM_SIG_BITS     : integer := 6;
             INST_CONC_SIG_BITS    : integer := 64
         );
         port (
@@ -64,7 +61,6 @@ package diversity_components_pkg is
             registers_i : in register_type; 
             -- Signatures
             reg_signature_o       : out std_logic_vector(REG_SIG_BITS-1 downto 0);
-            inst_signature_sum_o  : out std_logic_vector(INST_SUM_SIG_BITS-1 downto 0);
             inst_signature_conc_o : out std_logic_vector(INST_CONC_SIG_BITS-1 downto 0);
             fifo_input_conc_o     : out std_logic_vector(coding_bits_inst_conc*2-1 downto 0)
          );

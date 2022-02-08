@@ -4,14 +4,17 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 library bsc;
 use bsc.diversity_types_pkg.all;
+-- This procedure stops the simulation
+use std.env.stop;
 
 
-entity apb_lightlock_tb is
+
+entity apb_SafeDM_tb is
     --port ();
 end;
 
 
-architecture rtl of apb_lightlock_tb is
+architecture rtl of apb_SafeDM_tb is
 
 
     -- Top component declaration
@@ -66,7 +69,7 @@ architecture rtl of apb_lightlock_tb is
     procedure apb_read(
             constant addr   : in integer;                                 -- Bus address to read from
             constant print  : in string(1 to 30);                         -- Message to print before printing the data read
-            signal compare_value : in unsigned(31 downto 0);              -- Value to compare with the data read (if not equal an error is raised
+            signal compare_value : in integer;                            -- Value to compare with the data read (if not equal an error is raised
             -- apb signals
             signal apbo_prdata  : in std_logic_vector(31 downto 0);
             signal apbi_psel    : out std_logic;
@@ -89,8 +92,8 @@ architecture rtl of apb_lightlock_tb is
             data <= apbo_prdata;
             wait for 10 ns;
             -- Third cycle
-            report print & integer'image(to_integer(unsigned(apbo_prdata))) & " =? " & integer'image(to_integer(compare_value)) severity note;
-            assert compare_value = unsigned(apbo_prdata) report print & "Lightlock register value = " & integer'image(to_integer(unsigned(apbo_prdata))) & " does not match the value of the testbench = " & integer'image(to_integer(compare_value)) severity error;
+            report print & integer'image(to_integer(unsigned(apbo_prdata))) & " ~ " & integer'image(compare_value) severity note;
+            assert compare_value + 10 > to_integer(unsigned(apbo_prdata)) and compare_value - 10 < to_integer(unsigned(apbo_prdata)) report print & "Cycles without diversity = " & integer'image(to_integer(unsigned(apbo_prdata))) & " does not match the value of the testbench = " & integer'image(compare_value) severity error;
             apbi_penable <= '0';
             apbi_psel <= '0';
             data <= (others => '0');
@@ -146,33 +149,20 @@ architecture rtl of apb_lightlock_tb is
     signal diversity_lack  : std_logic;
     signal sync_inst, sync_regs : std_logic;
 
+    signal cycles_expected : integer; -- Expected cycles where there is like of diversity
+
 
     -- Local signals
     signal data_read : std_logic_vector(31 downto 0); -- Signal to read the read data in the bus
-
-    signal enable_core1, enable_core2, r_enable_core1, r_enable_core2, enable : std_logic;
-
-    -- Signal for statistics
-    signal r_total_cycles, r_executed_inst1, r_executed_inst2, r_times_stalled_core1, r_times_stalled_core2, r_cycles_stalled_core1, r_cycles_stalled_core2, r_max_inst_diff, r_min_inst_diff : unsigned(31 downto 0);
-    signal n_total_cycles, n_executed_inst1, n_executed_inst2, n_times_stalled_core1, n_times_stalled_core2, n_cycles_stalled_core1, n_cycles_stalled_core2, n_max_inst_diff, n_min_inst_diff : unsigned(31 downto 0);
-    signal core1_ahead_core2 : std_logic;
-
-    signal r_stall1, r_stall2, f_stall1, f_stall2 : std_logic;
-
-    constant fill_zeros : unsigned(16 downto 0) := to_unsigned(0, 17);
-    signal instruction_difference : unsigned(14 downto 0);
-
-    signal r_activate_minimum_inst_comp : std_logic;    
-
 
 begin
 
     input_sim_inst : input_sim 
     port map(
-        clk => clk
+        clk => clk,
         -- Sync signals
-        sync_inst => sync_inst            -- When it is high, instructions of both cores synchornyze
-        sync_regs => sync_regs            -- When it is high, registers of both cores synchornyze
+        sync_inst => sync_inst,           -- When it is high, instructions of both cores synchornyze
+        sync_regs => sync_regs,           -- When it is high, registers of both cores synchornyze
         -- Instructions signature
         instructions_o => instructions,   -- Signals to calculate the instruction signature
         -- Registers signatures
@@ -182,12 +172,12 @@ begin
     );
 
 
-    diversity_quantifier_top_inst : diversity_quatifier_top
+    diversity_quantifier_top_inst : diversity_quantifier_top
     generic map(
-        coding_method         => 2;   -- It can use parity, ECC or none to encode the instructions and registers writes
-        coding_bits_reg       => 64;  -- Number of bits saved for each register read 
-        coding_bits_inst_conc => 32;  -- Number of bits saved for each instruction (concatenation signature)
-        regs_number           => 5;   -- Number of saved (last) register read to calculate the registers signature
+        coding_method         => 2,   -- It can use parity, ECC or none to encode the instructions and registers writes
+        coding_bits_reg       => 64,  -- Number of bits saved for each register read 
+        coding_bits_inst_conc => 32,  -- Number of bits saved for each instruction (concatenation signature)
+        regs_number           => 5,   -- Number of saved (last) register read to calculate the registers signature
         saved_inst            => 6    -- Number of saved (last) instructions to calculate the instruction signature
         )
     port map(
@@ -199,7 +189,7 @@ begin
         apbi_penable_i => apbi_penable,
         apbi_pwrite_i  => apbi_pwrite, 
         apbi_pwdata_i  => apbi_pwdata,                  
-        apbo_prdata_o  => data_read,       
+        apbo_prdata_o  => apbo_prdata,       
         -----------------------------------------------------
         -- Singals to calculate sigantures ------------------
         -- Instructions signature
@@ -225,24 +215,13 @@ begin
         wait for 5 ns;
     end process;
 
-    -- icnt generation
-    -- It generates them randomly
-    -- TODO: adapt it for more lanes
-    icnt_generation : inst_count_sim 
-    port map(
-        clk      => clk,         
-        stall2_i => stall2,  
-        stall1_i => stall1,
-        icnt1_o  => icnt1,
-        icnt2_o  => icnt2
-        );
 
     -- Main process
     process is
         variable write_register : std_logic_vector(31 downto 0);
     begin
-        enable_core1 <= '0';
-        enable_core2 <= '0';
+        sync_regs <= '0';
+        sync_inst <= '0';
 
         -- Configure inputs to reset value
         apbi_psel     <= '0';   
@@ -250,7 +229,6 @@ begin
         apbi_penable  <= '0';   
         apbi_pwrite   <= '0';
         apbi_pwdata   <= (others => '0');
-        data_read     <= (others => '0');
 
         --Reset
         rstn <= '0';
@@ -259,84 +237,65 @@ begin
         wait for 100 ns;
         rstn <= '1';
 
-        -- CONFIGURE LIGHTLOCK INTERNAL REGISTERS ------------------------------------------------------------------
+        -- SOFT RESET AND ENABLE ----------------------------------------------------------------------------------
         -- apb_write(addr, write_data, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata)
         -- Soft reset
-        write_register := x"80000000";
-        apb_write(0, write_register, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata);
+        write_register := x"00000001";
+        apb_write(0*4, write_register, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata);
         wait for 10 ns;
 
-        -- Global enable and configure min and max staggering (10,20)
-        write_register := x"400a000a";
-        apb_write(0, write_register, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata);
-        wait for 10 ns;
-
-        -- Start critical section core1
-        enable_core1 <= '1' after 11 ns;
+        -- Enable SafeDM
         write_register := x"00000001";
         apb_write(1*4, write_register, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata);
-        wait for 80 ns;
-
-        -- Start critical section core2
-        enable_core2 <= '1' after 11 ns;
-        write_register := x"00000001";
-        apb_write(2*4, write_register, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata);
         wait for 10 ns;
-        ------------------------------------------------------------------------------------------------------------
 
-        -- SET A DURATION FOR THE TEST --------------------------------------
-        wait for 20000 ns;
+        ------------------------------------------------------------------------------------------------------------
+        -- SYNCHRONIZE AND DESYNCHRONIZE THE SIMULATED CORES
+        wait for 1000 ns;
+
+        sync_regs <= '1';
+        sync_inst <= '1';
+
+        wait for 1000 ns;
+
+        sync_regs <= '0';
+        sync_inst <= '1';
+
+        wait for 1000 ns;
+
+        sync_regs <= '1';
+        sync_inst <= '1';
+
+        wait for 1000 ns;
+
+        sync_regs <= '1';
+        sync_inst <= '0';
+        
+        wait for 1000 ns;
+
+        sync_regs <= '0';
+        sync_inst <= '0';
+        
+        wait for 1000 ns;
         ---------------------------------------------------------------------
 
-        -- STOP CRITICAL SECTIONS ----------------------------------------------------------------------------------
+        -- STOP SAFEDM --------------------------------------------------------------------------------------------
         -- Stop critical section core1
-        enable_core1 <= '0' after 11 ns;
         write_register := x"00000000";
         apb_write(1*4, write_register, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata);
         wait for 80 ns;
-
-        -- Stop critical section core2
-        enable_core2 <= '0' after 11 ns;
-        write_register := x"00000000";
-        apb_write(2*4, write_register, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata);
-        wait for 10 ns;
         ------------------------------------------------------------------------------------------------------------
 
-        -- GATHER RESULTS ------------------------------------------------------------------------------------------
-        -- apb_read(addr, write_data, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata)
-        apb_read(3*4, "Total cycles:                 ", r_total_cycles, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata, data_read);
-        wait for 10 ns;
-
-        apb_read(4*4, "Executed instructions core1:  ", r_executed_inst1, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata, data_read);
-        wait for 10 ns;
-
-        apb_read(5*4, "Executed instructions core2:  ", r_executed_inst2, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata, data_read);
-        wait for 10 ns;
-
-        apb_read(6*4, "Times core1 has been stalled: ", r_times_stalled_core1, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata, data_read);
-        wait for 10 ns;
-
-        apb_read(7*4, "Times core2 has been stalled: ", r_times_stalled_core2, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata, data_read);
-        wait for 10 ns;
-
-        apb_read(8*4, "Cycles core1 has been stalled:", r_cycles_stalled_core1, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata, data_read);
-        wait for 10 ns;
-
-        apb_read(9*4, "Cycles core2 has been stalled:", r_cycles_stalled_core2, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata, data_read);
-        wait for 10 ns;
-
-        apb_read(10*4, "Max instructions difference:  ", r_max_inst_diff, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata, data_read);
-        wait for 10 ns;
-
-        apb_read(12*4, "Min instructions difference:  ", r_min_inst_diff, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata, data_read);
+        ---- GATHER RESULTS ------------------------------------------------------------------------------------------
+        cycles_expected <= 170;
+        ---- apb_read(addr, print, compare value, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata)
+        apb_read(2*4, "Cycles without diversity:     ",cycles_expected , apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata, data_read);
         wait for 10 ns;
         ------------------------------------------------------------------------------------------------------------
 
         report "Test finished";
         stop;
         
-        -- report "Test finished" severity error;
-        -- assert 1 = 2  report "Test finished." severity failure;
         wait;
     end process;
 
