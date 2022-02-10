@@ -7,9 +7,9 @@ package diversity_types_pkg is
     constant ports_number : integer := 4;
 
     -- Types for instructions signature ---------------------------------------------
-    type opcode_vector  is array (natural range <>) of std_logic_vector(31 downto 0);
+    type instruction_vector  is array (natural range <>) of std_logic_vector(31 downto 0);
     type instruction_type is record
-        opcode : opcode_vector(lanes-1 downto 0);    -- not opcode but the whole instruction TODO: change it
+        inst_value : instruction_vector(lanes-1 downto 0);    
         valid  : std_logic_vector(lanes-1 downto 0); -- It is 1 when the instruction is valid
     end record;
 

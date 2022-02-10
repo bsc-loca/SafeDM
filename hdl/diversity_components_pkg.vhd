@@ -8,11 +8,13 @@ package diversity_components_pkg is
 
     component diversity_quantifier_top is
     generic (
-        coding_method         : integer := 2;   -- It can use parity, ECC or none to encode the instructions and registers writes
-        coding_bits_reg       : integer := 64;  -- Number of bits saved for each register read 
-        coding_bits_inst_conc : integer := 32;  -- Number of bits saved for each instruction (concatenation signature)
-        regs_number           : integer := 5;   -- Number of saved (last) register read to calculate the registers signature
-        saved_inst            : integer := 6    -- Number of saved (last) instructions to calculate the instruction signature
+        coding_method    : integer := 2;   -- It can use none (0), parity (1) or ECC to encode the instructions and registers writes
+        read_ports       : integer := 4;   -- Number of ports in the file register
+        lanes_number     : integer := 2;   -- Number of lanes of the cores
+        coding_bits_reg  : integer := 64;  -- Number of bits saved for each register, if register is encoded can be less bits than register bits  
+        coding_bits_inst : integer := 32;  -- Number of bits saved for each instruction, if instruction is encoded can be less bits than instruction bits   
+        regs_FIFO_pos    : integer := 5;   -- Number of read registers FIFO positions to calculate the registers signature
+        inst_FIFO_pos    : integer := 6    -- Number of instructions FIFO positions to calculate the instruction signature
         );
     port (
         rstn           : in  std_ulogic;
@@ -40,14 +42,16 @@ package diversity_components_pkg is
 
     component signature_calculator is
         generic (
-            coding_method         : integer := 1;
-            coding_bits_reg       : integer := 1;
-            coding_bits_inst_conc : integer := 32;
-            regs_number           : integer := 32;
-            saved_inst            : integer := 32;
-            REG_SIG_PORT_BITS     : integer := 4;
-            REG_SIG_BITS          : integer := 32;
-            INST_CONC_SIG_BITS    : integer := 64
+            lanes_number      : integer := 2;  
+            read_ports        : integer := 4;  
+            coding_method     : integer := 1;
+            coding_bits_reg   : integer := 1;
+            coding_bits_inst  : integer := 32;
+            regs_FIFO_pos     : integer := 32;
+            inst_FIFO_pos     : integer := 32;
+            REG_SIG_PORT_BITS : integer := 4;
+            REG_SIG_BITS      : integer := 32;
+            INST_SIG_BITS     : integer := 64
         );
         port (
             rstn   : in  std_ulogic;
@@ -61,14 +65,13 @@ package diversity_components_pkg is
             registers_i : in register_type; 
             -- Signatures
             reg_signature_o       : out std_logic_vector(REG_SIG_BITS-1 downto 0);
-            inst_signature_conc_o : out std_logic_vector(INST_CONC_SIG_BITS-1 downto 0);
-            fifo_input_conc_o     : out std_logic_vector(coding_bits_inst_conc*2-1 downto 0)
+            inst_signature_o : out std_logic_vector(INST_SIG_BITS-1 downto 0) 
          );
     end component signature_calculator;
 
     --component mem_regs_sign is
     --    generic (
-    --        regs_number  : integer := 32;
+    --        regs_FIFO_pos  : integer := 32;
     --        coding_bits  : integer := 1
     --    );
     --    port (

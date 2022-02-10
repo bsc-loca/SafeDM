@@ -42,7 +42,7 @@ architecture rtl of input_sim is
 
     -- SIGNALS FOR INSTRUCTION GENERATION ------------------------
     -- Random numbers to generate the instructions (32 bits)
-    signal instruction1, instruction2 : opcode_vector(lanes-1 downto 0);
+    signal instruction1, instruction2 : instruction_vector(lanes-1 downto 0);
 
     -- Random numbers to generate the hold and the valid signals
     signal hold : std_logic_vector(lanes-1 downto 0);
@@ -63,27 +63,27 @@ begin
         if sync_inst = '1' then
             -- If sync_inst is activated same inputs are generated for both cores
             -- CORE 1
-            instructions_o(0).opcode(0) <= instruction1(0); 
-            instructions_o(0).opcode(1) <= instruction1(1); 
+            instructions_o(0).inst_value(0) <= instruction1(0); 
+            instructions_o(0).inst_value(1) <= instruction1(1); 
             instructions_o(0).valid(0) <= valid1(0);
             instructions_o(0).valid(1) <= valid1(1);
             hold_o(0) <= hold(0);
             -- CORE 2
-            instructions_o(1).opcode(0) <= instruction1(0); 
-            instructions_o(1).opcode(1) <= instruction1(1); 
+            instructions_o(1).inst_value(0) <= instruction1(0); 
+            instructions_o(1).inst_value(1) <= instruction1(1); 
             instructions_o(1).valid(0) <= valid1(0);
             instructions_o(1).valid(1) <= valid1(1);
             hold_o(1) <= hold(0);
         else 
             -- CORE 1
-            instructions_o(0).opcode(0) <= instruction1(0); 
-            instructions_o(0).opcode(1) <= instruction1(1); 
+            instructions_o(0).inst_value(0) <= instruction1(0); 
+            instructions_o(0).inst_value(1) <= instruction1(1); 
             instructions_o(0).valid(0) <= valid1(0);
             instructions_o(0).valid(1) <= valid1(1);
             hold_o(0) <= hold(0);
             -- CORE 2
-            instructions_o(1).opcode(0) <= instruction2(0); 
-            instructions_o(1).opcode(1) <= instruction2(1); 
+            instructions_o(1).inst_value(0) <= instruction2(0); 
+            instructions_o(1).inst_value(1) <= instruction2(1); 
             instructions_o(1).valid(0) <= valid2(0);
             instructions_o(1).valid(1) <= valid2(1);
             hold_o(1) <= hold(1);
