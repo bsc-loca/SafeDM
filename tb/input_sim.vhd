@@ -1,17 +1,6 @@
--- -----------------------------------------------
--- Project Name   : De-RISC
--- File           : testbench.vhd
--- Organization   : Barcelona Supercomputing Center
--- Author(s)      : Francisco Bas
--- Email(s)       : francisco.basjalon@bsc.es
--- References     : 
--- -----------------------------------------------
--- Revision History
---  Revision   | Author        | Commit | Description
---  1.0        | Francisco Bas | 000000 | Contribution
--- -----------------------------------------------
---
-
+-------------------------------------------------------------------------------------------------------------------
+-- This module is part of the testbench and is in charge of generating the inputs for SafeDM
+-------------------------------------------------------------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -38,20 +27,18 @@ end;
 
 architecture rtl of input_sim is
 
-    --constant lanes : integer := 2; -- Number of lanes in each core
-
     -- SIGNALS FOR INSTRUCTION GENERATION ------------------------
     -- Random numbers to generate the instructions (32 bits)
-    signal instruction1, instruction2 : instruction_vector(lanes-1 downto 0);
+    signal instruction1, instruction2 : instruction_vector(lanes_number-1 downto 0);
 
     -- Random numbers to generate the hold and the valid signals
-    signal hold : std_logic_vector(lanes-1 downto 0);
-    signal valid1, valid2 : std_logic_vector(lanes-1 downto 0);
+    signal hold : std_logic_vector(1 downto 0);
+    signal valid1, valid2 : std_logic_vector(lanes_number-1 downto 0);
     --------------------------------------------------------------
 
 
     -- SIGNALS FOR REGISTERS GENERATION ------------------------
-    signal ren1, ren2 : std_logic_vector(ports_number-1 downto 0);  
+    signal ren1, ren2 : std_logic_vector(read_ports-1 downto 0);  
     signal register1 : value_port_vector;
     signal register2 : value_port_vector;
     --------------------------------------------------------------
@@ -62,30 +49,26 @@ begin
     begin
         if sync_inst = '1' then
             -- If sync_inst is activated same inputs are generated for both cores
-            -- CORE 1
-            instructions_o(0).inst_value(0) <= instruction1(0); 
-            instructions_o(0).inst_value(1) <= instruction1(1); 
-            instructions_o(0).valid(0) <= valid1(0);
-            instructions_o(0).valid(1) <= valid1(1);
+            for N in 0 to lanes_number-1 loop
+                -- CORE 1
+                instructions_o(0).inst_value(N) <= instruction1(N); 
+                instructions_o(0).valid(N) <= valid1(N);
+                -- CORE 2
+                instructions_o(1).inst_value(N) <= instruction1(N); 
+                instructions_o(1).valid(N) <= valid1(N);
+            end loop;
             hold_o(0) <= hold(0);
-            -- CORE 2
-            instructions_o(1).inst_value(0) <= instruction1(0); 
-            instructions_o(1).inst_value(1) <= instruction1(1); 
-            instructions_o(1).valid(0) <= valid1(0);
-            instructions_o(1).valid(1) <= valid1(1);
             hold_o(1) <= hold(0);
         else 
-            -- CORE 1
-            instructions_o(0).inst_value(0) <= instruction1(0); 
-            instructions_o(0).inst_value(1) <= instruction1(1); 
-            instructions_o(0).valid(0) <= valid1(0);
-            instructions_o(0).valid(1) <= valid1(1);
+            for N in 0 to lanes_number-1 loop
+                -- CORE 1
+                instructions_o(0).inst_value(N) <= instruction1(N); 
+                instructions_o(0).valid(N) <= valid1(N);
+                -- CORE 2
+                instructions_o(1).inst_value(N) <= instruction2(N); 
+                instructions_o(1).valid(N) <= valid2(N);
+            end loop;
             hold_o(0) <= hold(0);
-            -- CORE 2
-            instructions_o(1).inst_value(0) <= instruction2(0); 
-            instructions_o(1).inst_value(1) <= instruction2(1); 
-            instructions_o(1).valid(0) <= valid2(0);
-            instructions_o(1).valid(1) <= valid2(1);
             hold_o(1) <= hold(1);
         end if;
     end process;
@@ -95,48 +78,28 @@ begin
     begin
         if sync_regs = '1' then
             -- If sync_regs is activated same inputs are generated for both cores
-            -- CORE 1
-            registers_o(0).value(0) <= register1(0); 
-            registers_o(0).value(1) <= register1(1); 
-            registers_o(0).value(2) <= register1(2); 
-            registers_o(0).value(3) <= register1(3); 
-            registers_o(0).ren(0) <= ren1(0); 
-            registers_o(0).ren(1) <= ren1(1); 
-            registers_o(0).ren(2) <= ren1(2); 
-            registers_o(0).ren(3) <= ren1(3); 
-            -- CORE 2
-            registers_o(1).value(0) <= register1(0); 
-            registers_o(1).value(1) <= register1(1); 
-            registers_o(1).value(2) <= register1(2); 
-            registers_o(1).value(3) <= register1(3); 
-            registers_o(1).ren(0) <= ren1(0); 
-            registers_o(1).ren(1) <= ren1(1); 
-            registers_o(1).ren(2) <= ren1(2); 
-            registers_o(1).ren(3) <= ren1(3); 
+            for N in 0 to read_ports-1 loop
+                -- CORE 1
+                registers_o(0).value(N) <= register1(N); 
+                registers_o(0).ren(N) <= ren1(N); 
+                -- CORE 2
+                registers_o(1).value(N) <= register1(N); 
+                registers_o(1).ren(N) <= ren1(N); 
+            end loop;
         else 
-            -- CORE 1
-            registers_o(0).value(0) <= register1(0); 
-            registers_o(0).value(1) <= register1(1); 
-            registers_o(0).value(2) <= register1(2); 
-            registers_o(0).value(3) <= register1(3); 
-            registers_o(0).ren(0) <= ren1(0); 
-            registers_o(0).ren(1) <= ren1(1); 
-            registers_o(0).ren(2) <= ren1(2); 
-            registers_o(0).ren(3) <= ren1(3); 
-            -- CORE 2
-            registers_o(1).value(0) <= register2(0); 
-            registers_o(1).value(1) <= register2(1); 
-            registers_o(1).value(2) <= register2(2); 
-            registers_o(1).value(3) <= register2(3); 
-            registers_o(1).ren(0) <= ren2(0); 
-            registers_o(1).ren(1) <= ren2(1); 
-            registers_o(1).ren(2) <= ren2(2); 
-            registers_o(1).ren(3) <= ren2(3); 
+            for N in 0 to read_ports-1 loop
+                -- CORE 1
+                registers_o(0).value(N) <= register1(N); 
+                registers_o(0).ren(N) <= ren1(N); 
+                -- CORE 2
+                registers_o(1).value(N) <= register2(N); 
+                registers_o(1).ren(N) <= ren2(N); 
+            end loop;
         end if;
     end process;
 
     -- Generates instruction core0
-    INST1_GEN: for I in 0 to lanes-1 generate
+    INST1_GEN: for I in 0 to lanes_number-1 generate
         process is
             variable seed1 : positive := 4 + I;
             variable seed2 : positive := 7 + I;
@@ -151,7 +114,7 @@ begin
     end generate INST1_GEN;
 
     -- Generates instruction core1
-    INST2_GEN: for I in 0 to lanes-1 generate
+    INST2_GEN: for I in 0 to lanes_number-1 generate
         process is
             variable seed1 : positive := 3 + I;
             variable seed2 : positive := 43 + I;
@@ -185,7 +148,7 @@ begin
     end generate HOLD_GEN;
 
     -- Generates valid signals for each lane of the core1
-    VALID1_GEN: for I in 0 to lanes-1 generate
+    VALID1_GEN: for I in 0 to lanes_number-1 generate
         process is
             variable seed1 : positive := 19 + I;
             variable seed2 : positive := 15 + I;
@@ -204,7 +167,7 @@ begin
     end generate VALID1_GEN;
 
     -- Generates valid signals for each lane of the core2
-    VALID2_GEN: for I in 0 to lanes-1 generate
+    VALID2_GEN: for I in 0 to lanes_number-1 generate
         process is
             variable seed1 : positive := 19 + I;
             variable seed2 : positive := 15 + I;
@@ -224,7 +187,7 @@ begin
 
 
     -- Generates ren core1
-    REN1_GEN: for I in 0 to ports_number-1 generate
+    REN1_GEN: for I in 0 to read_ports-1 generate
         process is
             variable seed1 : positive := 23 + I;
             variable seed2 : positive := 40 + I;
@@ -244,7 +207,7 @@ begin
 
 
     -- Generates ren core2
-    REN2_GEN: for I in 0 to ports_number-1 generate
+    REN2_GEN: for I in 0 to read_ports-1 generate
         process is
             variable seed1 : positive := 15 + I;
             variable seed2 : positive := 16 + I;
@@ -263,7 +226,7 @@ begin
     end generate REN2_GEN;
 
     -- Generates registers core1
-    REG1_GEN: for I in 0 to ports_number-1 generate
+    REG1_GEN: for I in 0 to read_ports-1 generate
         process is
             variable seed1 : positive := 4 + I;
             variable seed2 : positive := 44 + I;
@@ -281,7 +244,7 @@ begin
 
 
     -- Generates registers core2
-    REG2_GEN: for I in 0 to ports_number-1 generate
+    REG2_GEN: for I in 0 to read_ports-1 generate
         process is
             variable seed1 : positive := 1 + I;
             variable seed2 : positive := 34 + I;

@@ -1,3 +1,8 @@
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-- This module uses the instructions in the decode stage and the read registers from the file register to generate both the 
+-- instructions and register signatures of the core
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -8,13 +13,11 @@ use bsc.diversity_components_pkg.all;
 
 entity signature_calculator is
     generic (
-        lanes_number      : integer := 2;       -- Number of lanes
-        read_ports        : integer := 4;       -- Number of register file read ports
-        coding_method     : integer := 1;       -- Determines which method is used to encode the elements of the signatures
+        coding_method     : integer := 0;       -- Determines which method is used to encode the elements of the signatures
         coding_bits_reg   : integer := 1;       -- Number of bits of each register signature element
         coding_bits_inst  : integer := 32;      -- Number of bits of each coded instruction 
-        regs_FIFO_pos     : integer := 5;       -- Number of registers in the signature
-        inst_FIFO_pos     : integer := 6;       -- Number of saved instructions
+        regs_FIFO_pos     : integer := 5;       -- Number of FIFO positions in the register signature per port
+        inst_FIFO_pos     : integer := 6;       -- Number of FIFO positions in the instruction signature 
         REG_SIG_PORT_BITS : integer := 64*5;    -- Total number of bits of each FIFO of each port of the register file
         REG_SIG_BITS      : integer := 64*5*4;  -- Total bits of all the FIFOs of all the ports (=register instruction bits)
         INST_SIG_BITS     : integer := 32       -- Total number of bits in all the positions of the FIFO where the instructions are stored
@@ -40,21 +43,11 @@ architecture rtl of signature_calculator is
     ---------------------------------------------------------------------------------------------------------------------------------------------
     -- FUNCTIONS DECLARATION --------------------------------------------------------------------------------------------------------------------
     ---------------------------------------------------------------------------------------------------------------------------------------------
-    -- Function with the coding methods are added
-
-    ---- Single bit parity method (1)
-    --function parity (input_vector: std_logic_vector) return std_logic_vector is
-    --    variable parity_bit : std_logic_vector(0 downto 0);
-    --begin
-    --    parity_bit(0 downto 0) := "0";
-    --    for i in input_vector'range loop
-    --        parity_bit(0) := parity_bit(0) xor input_vector(i);
-    --    end loop;
-    --    return parity_bit;
-    --end function;
-
-
     -- This function calculates the extended hamming code of the input vector
+    -- BE AWARE OF GIVING THE CODED VECTOR THE RIGHT LENGTH TAKING ON ACCOUNT THE LENGTH OF THE INPUT
+    -- If instructions are 32 bits long and registers are 64 bits:
+    -- INSTRUCTIONS: coding_bits_inst = log2(32)+2 = 7
+    -- REGISTERS: coding_bits_reg = log2(64)+2 = 8
     function hamming_code (input_vector: std_logic_vector) return std_logic_vector is
         -- The code length works only if the input vector length is a power of 2 or it is close
         -- to a power of 2.
@@ -137,8 +130,7 @@ architecture rtl of signature_calculator is
     -- Instruction signature signals ---------------------------------------
     type inst_lane_vector is array (lanes_number-1 downto 0) of std_logic_vector(coding_bits_inst-1 downto 0); 
     signal inst_coding_lane, coding_register_lane, fifo_input_lane : inst_lane_vector;
-    --signal inst_coding_lane1_conc, inst_coding_lane2_conc, coding_register_lane1_conc, coding_register_lane2_conc: std_logic_vector(coding_bits_inst_conc-1 downto 0);
-    signal fifo_input_inst : std_logic_vector(coding_bits_inst*2-1 downto 0);
+    signal fifo_input_inst : std_logic_vector(coding_bits_inst*lanes_number-1 downto 0);
     ---------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -165,19 +157,6 @@ begin
             inst_coding_lane(n) <= hamming_code(instructions_i.inst_value(n));
         end generate inst_inputs;
     end generate method_hamming;
-
-    --method_hamming : if (coding_method = 2) generate
-    ------ We encode every register value in the input of the file register with the hamming code algorithm SEDC-DED 
-    ------ (Single Bit Error Detection and Correction-Double Bit Error Detection).
-    ----    equal : for n in 0 to read_ports-1 generate
-    ----        reg_coding(n) <= registers_i.value(n);
-    ----    end generate equal;
-
-    ------ No encode is performed for the concatenation signature
-    ------ TODO: change inst_value
-    ----    inst_coding_lane1_conc <= instructions_i.inst_value(0);
-    ----    inst_coding_lane2_conc <= instructions_i.inst_value(1);
-    --end generate method_hamming;
     ---------------------------------------------------------------------------------------------------------------------------------------------
 
 
@@ -185,9 +164,9 @@ begin
     ---------------------------------------------------------------------------------------------------------------------------------------------
     -- REGISTER SIGNATURE  ----------------------------------------------------------------------------------------------------------------------
     ---------------------------------------------------------------------------------------------------------------------------------------------
-    
     -- One signature is generated for each read port
-    -- Later, this signatures are added.
+    -- Later, this signatures are concatenated.
+
     register_signature : for n in 0 to read_ports-1 generate
         process(clk)
         begin
@@ -196,25 +175,26 @@ begin
                     r_reg_coding(n) <= (others => '0');
                     r_ren(n) <= '0';
                 else
+                    -- Each time the input value of a port is valid (ren = 1') we register this value
                     if r_ren(n) = '1' then 
                         r_reg_coding(n) <= reg_coding(n);
                     end if;
-                    -- ren of each port is delayed 1 cycle
+                    -- ren of each port is delayed 1 cycle (TODO: review why?)
                     r_ren(n) <= registers_i.ren(n);
                 end if;
             end if;
         end process;
 
+        -- If the next value is not valid we keep storing in the FIFO the last valid value
         fifo_input_port(n) <= r_reg_coding(n) when r_ren(n) = '0' else 
-                             reg_coding(n);
+                              reg_coding(n);
 
-
-        fifo_regs : fifo_instructions
+        -- FIFO module te store the input values
+        fifo_regs : fifo_signature
             generic map(
-                CONCATENATION   => 1,
-                fifo_positions  => regs_FIFO_pos,
-                coding_bits     => coding_bits_reg,
-                CONC_SIG_BITS   => REG_SIG_PORT_BITS
+                fifo_positions => regs_FIFO_pos,
+                coding_bits    => coding_bits_reg,
+                SIG_BITS       => REG_SIG_PORT_BITS
                 )
             port map(
                 rstn    => rstn,
@@ -222,7 +202,7 @@ begin
                 enable  => enable,
                 shift   => hold_i,
                 fifo_input => fifo_input_port(n),
-                signature_conc  => reg_signature_port(n)
+                signature  => reg_signature_port(n)
             );
     end generate register_signature;
     
@@ -254,19 +234,22 @@ begin
                 if rstn = '0' then
                     coding_register_lane(n) <= (others => '0');
                 else
+                    -- Each time the instruction in decode is valid (valid = 1') we register this value
                     if instructions_i.valid(n) = '1' then 
                         coding_register_lane(n) <= inst_coding_lane(n);
                     end if;
                 end if;
             end if;
         end process;
+
+        -- If the next instruction value is not valid we keep storing in the FIFO the last valid value
         fifo_input_lane(n)  <= coding_register_lane(n) when instructions_i.valid(n) = '0' else
                                inst_coding_lane(n);
     end generate instructions_signature;
 
     -- It concatenates all the inputs of all the lanes (It performs the concatenation independently of the number of lanes)
     -- Equivalently for 2 lanes: fifo_input_inst <= fifo_input_lane(1) & fifo_input_lane(0); 
-    process(reg_signature_port) is
+    process(fifo_input_lane) is
         variable conc_temp : std_logic_vector(coding_bits_inst*lanes_number-1 downto 0);
     begin
         conc_temp(coding_bits_inst-1 downto 0) := fifo_input_lane(0);
@@ -276,43 +259,17 @@ begin
         fifo_input_inst <= conc_temp;
     end process;
 
-    --fifo_input_inst <= fifo_input_high_conc & fifo_input_low_conc;
-
---    process(clk)
---    begin
---        if rising_edge(clk) then
---            if rstn = '0' then
---                coding_register_lane(0) <= (others => '0');
---                coding_register_lane(1) <= (others => '0');
---            else
---                if instructions_i.valid(0) = '1' then 
---                    coding_register_lane(0) <= inst_coding_lane(0);
---                end if;
---                if instructions_i.valid(1) = '1' then 
---                    coding_register_lane(1) <= inst_coding_lane(1);
---                end if;
---            end if;
---        end if;
---    end process;
-
---    -- TODO: make it parametrizable
---    fifo_input_low_conc  <= coding_register_lane(0) when instructions_i.valid(0) = '0' else
---                           inst_coding_lane(0);
---    fifo_input_high_conc <= coding_register_lane(1) when instructions_i.valid(1) = '0' else
---                           inst_coding_lane(1);
---    fifo_input <= fifo_input_high_conc & fifo_input_low_conc;
 
 
     -- This is a FIFO with many positions as 'sabed_inst'. Every position of the fifo has space for two instructions, one of each lane.
     -- Every cycle new pair of instructions is stored and the less recently stored are discarded.
     -- The signature is calculated as the sumation of all the stored instructions.
-    fifo_instructions_inst2 : fifo_instructions
+    fifo_instructions_inst2 : fifo_signature
         generic map(
-            CONCATENATION  => 1,
-            repetition     => 2,
+            repetition     => lanes_number,
             fifo_positions => inst_FIFO_pos,
             coding_bits    => coding_bits_inst,
-            CONC_SIG_BITS  => INST_SIG_BITS
+            SIG_BITS       => INST_SIG_BITS
             )
         port map(
             rstn       => rstn,
@@ -320,8 +277,7 @@ begin
             enable     => enable,
             shift      => hold_i,
             fifo_input => fifo_input_inst,
-            --inst_signature_sum  => open,
-            signature_conc => inst_signature_o -- It can calculate the signature of concatenated instrucctions but not with the whole instruction but with the codification
+            signature  => inst_signature_o -- It can calculate the signature of concatenated instrucctions but not with the whole instruction but with the codification
         );
     ---------------------------------------------------------------------------------------------------------------------------------------------
 

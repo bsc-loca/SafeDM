@@ -1,10 +1,13 @@
+-------------------------------------------------------------------------------------------------------------------
+-- TOP module of the Testbench
+-------------------------------------------------------------------------------------------------------------------
 library ieee; 
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
 library bsc;
 use bsc.diversity_types_pkg.all;
-use bsc.diversity_components_pkg.diversity_quantifier_top;
+use bsc.diversity_components_pkg.SafeDM_top;
 -- This procedure stops the simulation
 use std.env.stop;
 
@@ -16,41 +19,6 @@ end;
 
 
 architecture rtl of apb_SafeDM_tb is
-
-
-    ---- Top component declaration
-    --component diversity_quantifier_top 
-    --    generic (
-    --        coding_method         : integer := 2;   -- It can use parity, ECC or none to encode the instructions and registers writes
-    --        read_ports            : integer := 4;   -- Number of ports in the file register
-    --        lanes_number          : integer := 2;   -- Number of lanes of the cores
-    --        coding_bits_reg       : integer := 64;  -- Number of bits saved for each register read 
-    --        coding_bits_inst_conc : integer := 32;  -- Number of bits saved for each instruction (concatenation signature)
-    --        regs_number           : integer := 5;   -- Number of saved (last) register read to calculate the registers signature
-    --        saved_inst            : integer := 6    -- Number of saved (last) instructions to calculate the instruction signature
-    --        );
-    --    port (
-    --        rstn           : in  std_ulogic;
-    --        clk            : in  std_ulogic;
-    --        -- APB signals --------------------------------------
-    --        apbi_psel_i    : in  std_logic;                       
-    --        apbi_paddr_i   : in  std_logic_vector(31 downto 0);                      
-    --        apbi_penable_i : in  std_logic;                     
-    --        apbi_pwrite_i  : in  std_logic;
-    --        apbi_pwdata_i  : in  std_logic_vector(31 downto 0);                   
-    --        apbo_prdata_o  : out std_logic_vector(31 downto 0);     
-    --        -----------------------------------------------------
-    --        -- Singals to calculate sigantures ------------------
-    --        -- Instructions signature
-    --        instructions_i : in instruction_type_vector;  -- Signals to calculate the instruction signature
-    --        -- Registers signatures
-    --        registers_i : in register_type_vector;        -- Signals to calculate the registers signature
-    --        -- hold signals
-    --        hold : in std_logic_vector(1 downto 0);       -- Signal that stalls the pipeline
-    --        -----------------------------------------------------
-    --        diversity_lack_o : out std_logic             -- It is set high when there is no diversity
-    --     );
-    --end component;
 
     component input_sim 
         port(
@@ -71,8 +39,8 @@ architecture rtl of apb_SafeDM_tb is
     -- Procedure to read in the APB bus
     procedure apb_read(
             constant addr   : in integer;                                 -- Bus address to read from
-            constant print  : in string(1 to 30);                         -- Message to print before printing the data read
-            signal compare_value : in integer;                            -- Value to compare with the data read (if not equal an error is raised
+            constant print  : in string(1 to 30);                         -- Message to print before printing the read data 
+            signal compare_value : in integer;                            -- Value to compare with the data read (if not equal an error is raised)
             -- apb signals
             signal apbo_prdata  : in std_logic_vector(31 downto 0);
             signal apbi_psel    : out std_logic;
@@ -160,6 +128,9 @@ architecture rtl of apb_SafeDM_tb is
 
 begin
 
+    -- This module simulates (randomly generates) the inputs of the diversity module
+    -- Simulates the instructions in decode (1 per lane) stage and the signals indicating that this instruction is valid (1 per lane)
+    -- Simulates the value of the registers being read from the register file and the signals indicating that the value is valid (1 per register port)
     input_sim_inst : input_sim 
     port map(
         clk => clk,
@@ -175,15 +146,13 @@ begin
     );
 
 
-    diversity_quantifier_top_inst : diversity_quantifier_top
+    SafeDM_top_inst : SafeDM_top
     generic map(
-        coding_method     => 0,   -- It can use parity, ECC or none to encode the instructions and registers writes
-        lanes_number      => 2,
-        read_ports        => 4,
-        coding_bits_reg   => 64,  -- Number of bits saved for each register read 
-        coding_bits_inst  => 32,  -- Number of bits saved for each instruction (concatenation signature)
-        regs_FIFO_pos     => 5,   -- Number of saved (last) register read to calculate the registers signature
-        inst_FIFO_pos     => 6    -- Number of saved (last) instructions to calculate the instruction signature
+        coding_method     => 1,--0,                  -- It can use parity, ECC or none to encode the instructions and registers writes
+        coding_bits_reg   => 8,--64,                 -- Number of bits saved for each register read 
+        coding_bits_inst  => 7,--32,                 -- Number of bits saved for each instruction (concatenation signature)
+        regs_FIFO_pos     => 5,                  -- Number of saved (last) register read to calculate the registers signature
+        inst_FIFO_pos     => 6                   -- Number of saved (last) instructions to calculate the instruction signature
         )
     port map(
         rstn => rstn,
@@ -222,6 +191,11 @@ begin
 
 
     -- Main process
+    -- Here SafeDM is activated through the APB interface
+    -- Inputs are alternated between periods in which they are equal for both cores and periods in which
+    -- they are different for both cores. (This is forced with signals sync_regs and sync_inst)
+    -- The module should count a number of cycles without diversity similar to the number of cycles in 
+    -- which the inputs for both cores are equal.
     process is
         variable write_register : std_logic_vector(31 downto 0);
     begin

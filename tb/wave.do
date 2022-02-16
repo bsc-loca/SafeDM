@@ -11,12 +11,12 @@ add wave -noupdate -group Input_sim -expand /apb_safedm_tb/input_sim_inst/regist
 add wave -noupdate -group Input_sim -expand /apb_safedm_tb/input_sim_inst/instruction1
 add wave -noupdate -group Input_sim -expand /apb_safedm_tb/input_sim_inst/instruction2
 add wave -noupdate -group Input_sim -expand /apb_safedm_tb/input_sim_inst/hold
-add wave -noupdate /apb_safedm_tb/diversity_quantifier_top_inst/enable
-add wave -noupdate /apb_safedm_tb/diversity_quantifier_top_inst/soft_rstn
-add wave -noupdate /apb_safedm_tb/diversity_quantifier_top_inst/diversity_lack_o
-add wave -noupdate -radix unsigned /apb_safedm_tb/diversity_quantifier_top_inst/diversity_lack_count
-add wave -noupdate /apb_safedm_tb/diversity_quantifier_top_inst/apbo_prdata_o
-add wave -noupdate /apb_safedm_tb/diversity_quantifier_top_inst/slave_index
+add wave -noupdate /apb_safedm_tb/SafeDM_top_inst/enable
+add wave -noupdate /apb_safedm_tb/SafeDM_top_inst/soft_rstn
+add wave -noupdate /apb_safedm_tb/SafeDM_top_inst/diversity_lack_o
+add wave -noupdate -radix unsigned /apb_safedm_tb/SafeDM_top_inst/diversity_lack_count
+add wave -noupdate /apb_safedm_tb/SafeDM_top_inst/apbo_prdata_o
+add wave -noupdate /apb_safedm_tb/SafeDM_top_inst/slave_index
 add wave -noupdate -expand -group apb_bus /apb_safedm_tb/apbo_prdata
 add wave -noupdate -expand -group apb_bus /apb_safedm_tb/apbi_pwrite
 add wave -noupdate -expand -group apb_bus /apb_safedm_tb/apbi_pwdata

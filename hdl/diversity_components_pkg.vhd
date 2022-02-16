@@ -6,11 +6,9 @@ use bsc.diversity_types_pkg.all;
 
 package diversity_components_pkg is
 
-    component diversity_quantifier_top is
+    component SafeDM_top is
     generic (
-        coding_method    : integer := 2;   -- It can use none (0), parity (1) or ECC to encode the instructions and registers writes
-        read_ports       : integer := 4;   -- Number of ports in the file register
-        lanes_number     : integer := 2;   -- Number of lanes of the cores
+        coding_method    : integer := 0;   -- It can use none (0), parity (1) or ECC to encode the instructions and registers writes
         coding_bits_reg  : integer := 64;  -- Number of bits saved for each register, if register is encoded can be less bits than register bits  
         coding_bits_inst : integer := 32;  -- Number of bits saved for each instruction, if instruction is encoded can be less bits than instruction bits   
         regs_FIFO_pos    : integer := 5;   -- Number of read registers FIFO positions to calculate the registers signature
@@ -37,14 +35,12 @@ package diversity_components_pkg is
         -----------------------------------------------------
         diversity_lack_o : out std_logic              -- It is set high when there is no diversity
      );
-    end component diversity_quantifier_top; 
+    end component SafeDM_top; 
 
 
     component signature_calculator is
         generic (
-            lanes_number      : integer := 2;  
-            read_ports        : integer := 4;  
-            coding_method     : integer := 1;
+            coding_method     : integer := 0;
             coding_bits_reg   : integer := 1;
             coding_bits_inst  : integer := 32;
             regs_FIFO_pos     : integer := 32;
@@ -69,47 +65,12 @@ package diversity_components_pkg is
          );
     end component signature_calculator;
 
-    --component mem_regs_sign is
-    --    generic (
-    --        regs_FIFO_pos  : integer := 32;
-    --        coding_bits  : integer := 1
-    --    );
-    --    port (
-    --        rstn    : in std_ulogic;
-    --        clk     : in std_ulogic;
-    --        enable  : in std_logic;
-    --        -- Port 1 read
-    --        ren1  : in std_logic;
-    --        data1 : in std_logic_vector(coding_bits-1 downto 0);
-    --        -- Port 2 read
-    --        ren2  : in std_logic_vector(coding_bits-1 downto 0);
-    --        data2 : in std_logic;
-    --        -- Port 3 read
-    --        ren3  : in std_logic_vector(coding_bits-1 downto 0);
-    --        data3 : in std_logic;
-    --        -- Port 4 read
-    --        ren4  : in std_logic_vector(coding_bits-1 downto 0);
-    --        data4 : in std_logic;
-    --        -- Port 1
-    --        we_1    : in std_logic;
-    --        wdata_1 : in std_logic_vector(coding_bits-1 downto 0);
-    --        -- Port 2
-    --        we_2    : in std_logic;
-    --        wdata_2 : in std_logic_vector(coding_bits-1 downto 0);
-    --        -- Output
-    --        reg_signature : out std_logic_vector(regs_number*coding_bits-1 downto 0)
-    --     );
-    --end component mem_regs_sign;  
-
-    component fifo_instructions is
+    component fifo_signature is
         generic (
-            SUMMATION      : integer := 0;
-            CONCATENATION  : integer := 0;
             repetition     : integer := 1;
             fifo_positions : integer := 32;
             coding_bits    : integer := 1;
-            SUM_SIG_BITS   : integer := 6;
-            CONC_SIG_BITS  : integer := 64
+            SIG_BITS       : integer := 64
         );
         port (
             rstn       : in std_ulogic;
@@ -117,10 +78,9 @@ package diversity_components_pkg is
             enable     : in std_logic;
             shift      : in std_logic;
             fifo_input : in std_logic_vector(coding_bits*repetition-1 downto 0);
-            signature_sum  : out std_logic_vector(SUM_SIG_BITS-1  downto 0); -- max value is maximum value per register * number of registers;
-            signature_conc : out std_logic_vector(CONC_SIG_BITS-1 downto 0)
+            signature  : out std_logic_vector(SIG_BITS-1 downto 0)
             );
-    end component fifo_instructions;
+    end component fifo_signature;
 
     component inst_diff_calculator is
         port(

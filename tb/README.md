@@ -6,6 +6,8 @@ In the `input_sim.vhd` file, a component that randomly generates the inputs for 
 
 The test-bench passes provided that the cycles where there is lack of diversity coincides more or less with the cycles in which both synchronization (registers and instructions) signals where high.
 
+Changing the constants `lanes` and `read_ports_number` in the file `hdl/diversity_types_pkg.vhd`, the diversity module logic and the test bench will adapt to the specified characteristics. 
+
 
 
 ---

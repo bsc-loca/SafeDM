@@ -14,15 +14,13 @@ library bsc;
 use bsc.diversity_types_pkg.all;
 use bsc.diversity_components_pkg.all;
 
-entity diversity_quantifier_top is
+entity SafeDM_top is
     generic (
-        coding_method     : integer := 0;   -- It can use none (0), parity (1) or ECC to encode the instructions and registers writes
-        read_ports        : integer := 4;   -- Number of ports in the file register
-        lanes_number      : integer := 2;   -- Number of lanes of the cores
-        coding_bits_reg   : integer := 64;  -- Number of bits saved for each register, if register is encoded can be less bits than register bits  
-        coding_bits_inst  : integer := 32;  -- Number of bits saved for each instruction, if instruction is encoded can be less bits than instruction bits   
-        regs_FIFO_pos     : integer := 5;   -- Number of read registers FIFO positions to calculate the registers signature
-        inst_FIFO_pos     : integer := 6    -- Number of instructions FIFO positions to calculate the instruction signature
+        coding_method     : integer := 0;                   -- It can use none (0) or ECC (1) to encode the instructions and registers writes
+        coding_bits_reg   : integer := 64;                  -- Number of bits saved for each register, if register is encoded with ECC the correct number of bits has to be selected
+        coding_bits_inst  : integer := 32;                  -- Number of bits saved for each instruction, if instruction is encoded with ECC the correct number of bits has to be selected
+        regs_FIFO_pos     : integer := 5;                   -- Number of read registers FIFO positions to calculate the registers signature
+        inst_FIFO_pos     : integer := 6                    -- Number of instructions FIFO positions to calculate the instruction signature
         );
     port (
         rstn           : in  std_ulogic;
@@ -48,7 +46,7 @@ entity diversity_quantifier_top is
 end;
 
 
-architecture rtl of diversity_quantifier_top is
+architecture rtl of SafeDM_top is
     -- Number of bits for the signals of the signatures -----------------------------------------------------------------
     constant REG_SIG_PORT_BITS : integer := regs_FIFO_pos*coding_bits_reg;  -- Total number of bits of each FIFO of each port of the register file
     constant REG_SIG_BITS : integer := REG_SIG_PORT_BITS*read_ports;        -- Total bits of all the FIFOs of all the ports (=register instruction bits)

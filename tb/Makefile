@@ -9,8 +9,8 @@ compile:
 	vlib bsc
 	mkdir -p bsc
 	vmap bsc bsc
-	vcom -work bsc $(hdl)/diversity_types_pkg.vhd $(hdl)/diversity_components_pkg.vhd $(hdl)/diversity_quantifier_top.vhd  $(signature_calculator)/fifo_instructions.vhd $(signature_calculator)/mem_regs_sign.vhd $(signature_calculator)/signature_calculator.vhd
-	vcom $(hdl)/diversity_components_pkg.vhd $(hdl)/diversity_quantifier_top.vhd $(hdl)/diversity_types_pkg.vhd $(signature_calculator)/fifo_instructions.vhd $(signature_calculator)/mem_regs_sign.vhd $(signature_calculator)/signature_calculator.vhd input_sim.vhd apb_SafeDM_tb.vhd 
+	vcom -work bsc $(hdl)/diversity_types_pkg.vhd $(hdl)/diversity_components_pkg.vhd $(hdl)/SafeDM_top.vhd  $(signature_calculator)/fifo_signature.vhd $(signature_calculator)/mem_regs_sign.vhd $(signature_calculator)/signature_calculator.vhd
+	vcom $(hdl)/diversity_components_pkg.vhd $(hdl)/SafeDM_top.vhd $(hdl)/diversity_types_pkg.vhd $(signature_calculator)/fifo_signature.vhd $(signature_calculator)/mem_regs_sign.vhd $(signature_calculator)/signature_calculator.vhd input_sim.vhd apb_SafeDM_tb.vhd 
 
 
 #Launches the simulation with the graphical interface
