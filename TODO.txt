@@ -1,14 +1,15 @@
-Adapt to one lane/ one register
-Solve uppercase issue
-Add write ports
+**Adapt to one lane/ one register--> Check why are we getting different number of cycles without diversity
+Add license
+** Solve uppercase issue 
 Take a look why the registers enable signal are registered
 review the dual lane scheme
 Get hardware resources with ECC
 Take a look to the warnings
-Add license
-Add documentation
 Change way in which registers behave in the FIFO
 Add driver
 Try it in a bitstream
+Add documentation
+Change things from the naming conventions
+Add write ports
 
 

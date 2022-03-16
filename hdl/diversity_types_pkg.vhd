@@ -4,8 +4,8 @@ use ieee.std_logic_1164.all;
 package diversity_types_pkg is
 
     -- Change here the number of lanes and read_ports of the design
-    constant lanes_number : integer := 3;
-    constant read_ports : integer := 5;
+    constant lanes_number : integer := 2;
+    constant read_ports : integer := 4;
 
     -- Types for instructions signature ---------------------------------------------
     type instruction_vector  is array (natural range <>) of std_logic_vector(31 downto 0);

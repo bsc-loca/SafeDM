@@ -16,11 +16,11 @@ entity signature_calculator is
         coding_method     : integer := 0;       -- Determines which method is used to encode the elements of the signatures
         coding_bits_reg   : integer := 1;       -- Number of bits of each register signature element
         coding_bits_inst  : integer := 32;      -- Number of bits of each coded instruction 
-        regs_FIFO_pos     : integer := 5;       -- Number of FIFO positions in the register signature per port
-        inst_FIFO_pos     : integer := 6;       -- Number of FIFO positions in the instruction signature 
-        REG_SIG_PORT_BITS : integer := 64*5;    -- Total number of bits of each FIFO of each port of the register file
-        REG_SIG_BITS      : integer := 64*5*4;  -- Total bits of all the FIFOs of all the ports (=register instruction bits)
-        INST_SIG_BITS     : integer := 32       -- Total number of bits in all the positions of the FIFO where the instructions are stored
+        regs_fifo_pos     : integer := 5;       -- Number of FIFO positions in the register signature per port
+        inst_fifo_pos     : integer := 6;       -- Number of FIFO positions in the instruction signature 
+        reg_sig_port_bits : integer := 64*5;    -- Total number of bits of each FIFO of each port of the register file
+        reg_sig_bits      : integer := 64*5*4;  -- Total bits of all the FIFOs of all the ports (=register instruction bits)
+        inst_sig_bits     : integer := 32       -- Total number of bits in all the positions of the FIFO where the instructions are stored
     );
     port (
         rstn   : in std_ulogic;
@@ -124,7 +124,7 @@ architecture rtl of signature_calculator is
     type reg_port_value_vector is array (read_ports-1 downto 0) of std_logic_vector(coding_bits_reg-1 downto 0); 
     signal r_reg_coding, reg_coding : reg_port_value_vector;
     signal fifo_input_port : reg_port_value_vector;
-    type reg_port_signatures_vector is array (read_ports-1 downto 0) of std_logic_vector(REG_SIG_PORT_BITS-1 downto 0); 
+    type reg_port_signatures_vector is array (read_ports-1 downto 0) of std_logic_vector(reg_sig_port_bits-1 downto 0); 
     signal reg_signature_port : reg_port_signatures_vector;
     signal r_ren : std_logic_vector(read_ports-1 downto 0);
     -- Instruction signature signals ---------------------------------------
@@ -192,9 +192,9 @@ begin
         -- FIFO module te store the input values
         fifo_regs : fifo_signature
             generic map(
-                fifo_positions => regs_FIFO_pos,
+                fifo_positions => regs_fifo_pos,
                 coding_bits    => coding_bits_reg,
-                SIG_BITS       => REG_SIG_PORT_BITS
+                sig_bits       => reg_sig_port_bits
                 )
             port map(
                 rstn    => rstn,
@@ -208,15 +208,24 @@ begin
     
     -- It concatenates all the signatures of all of the read ports (It performs the concatenation independently of the number of read ports)
     -- Equivalently for 4 read ports: reg_signature_o <= reg_signature_port(0) & reg_signature_port(1) & reg_signature_port(2) & reg_signature_port(3);
-    process(reg_signature_port) is
-        variable conc_temp : std_logic_vector(REG_SIG_BITS-1 downto 0);
-    begin
-        conc_temp(REG_SIG_PORT_BITS-1 downto 0) := reg_signature_port(0);
-        for N in 1 to read_ports-1 loop 
-            conc_temp(REG_SIG_PORT_BITS*(N+1)-1 downto 0) := conc_temp(REG_SIG_PORT_BITS*N-1 downto 0) & reg_signature_port(N);
-        end loop;
-        reg_signature_o <= conc_temp;
-    end process;
+
+    -- If there is more than 1 read port
+    multiple_rPorts : if (read_ports > 1) generate
+        process(reg_signature_port) is
+            variable conc_temp : std_logic_vector(reg_sig_bits-1 downto 0);
+        begin
+            conc_temp(reg_sig_port_bits-1 downto 0) := reg_signature_port(0);
+            for n in 1 to read_ports-1 loop 
+                conc_temp(reg_sig_port_bits*(n+1)-1 downto 0) := conc_temp(reg_sig_port_bits*n-1 downto 0) & reg_signature_port(n);
+            end loop;
+            reg_signature_o <= conc_temp;
+        end process;
+    end generate multiple_rPorts;
+
+    -- Alternatively if there is only one read port
+    one_rPorts : if (read_ports = 1) generate
+        reg_signature_o <= reg_signature_port(0);
+    end generate one_rPorts;
     
     ---------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -249,16 +258,24 @@ begin
 
     -- It concatenates all the inputs of all the lanes (It performs the concatenation independently of the number of lanes)
     -- Equivalently for 2 lanes: fifo_input_inst <= fifo_input_lane(1) & fifo_input_lane(0); 
-    process(fifo_input_lane) is
-        variable conc_temp : std_logic_vector(coding_bits_inst*lanes_number-1 downto 0);
-    begin
-        conc_temp(coding_bits_inst-1 downto 0) := fifo_input_lane(0);
-        for N in 1 to lanes_number-1 loop 
-            conc_temp(coding_bits_inst*(N+1)-1 downto 0) := conc_temp(coding_bits_inst*N-1 downto 0) & fifo_input_lane(N);
-        end loop;
-        fifo_input_inst <= conc_temp;
-    end process;
 
+    -- If there is more than 1 lane
+    multiple_lanes : if (lanes_number > 1) generate
+        process(fifo_input_lane) is
+            variable conc_temp : std_logic_vector(coding_bits_inst*lanes_number-1 downto 0);
+        begin
+            conc_temp(coding_bits_inst-1 downto 0) := fifo_input_lane(0);
+            for N in 1 to lanes_number-1 loop 
+                conc_temp(coding_bits_inst*(N+1)-1 downto 0) := conc_temp(coding_bits_inst*N-1 downto 0) & fifo_input_lane(N);
+            end loop;
+            fifo_input_inst <= conc_temp;
+        end process;
+    end generate multiple_lanes;
+
+    -- Alternatively if is there only 1 lane
+    one_lane : if (lanes_number = 1) generate
+        fifo_input_inst <= fifo_input_lane(0);
+    end generate one_lane;
 
 
     -- This is a FIFO with many positions as 'sabed_inst'. Every position of the fifo has space for two instructions, one of each lane.

@@ -11,8 +11,8 @@ package diversity_components_pkg is
         coding_method    : integer := 0;   -- It can use none (0), parity (1) or ECC to encode the instructions and registers writes
         coding_bits_reg  : integer := 64;  -- Number of bits saved for each register, if register is encoded can be less bits than register bits  
         coding_bits_inst : integer := 32;  -- Number of bits saved for each instruction, if instruction is encoded can be less bits than instruction bits   
-        regs_FIFO_pos    : integer := 5;   -- Number of read registers FIFO positions to calculate the registers signature
-        inst_FIFO_pos    : integer := 6    -- Number of instructions FIFO positions to calculate the instruction signature
+        regs_fifo_pos    : integer := 5;   -- Number of read registers FIFO positions to calculate the registers signature
+        inst_fifo_pos    : integer := 6    -- Number of instructions FIFO positions to calculate the instruction signature
         );
     port (
         rstn           : in  std_ulogic;
@@ -43,11 +43,11 @@ package diversity_components_pkg is
             coding_method     : integer := 0;
             coding_bits_reg   : integer := 1;
             coding_bits_inst  : integer := 32;
-            regs_FIFO_pos     : integer := 32;
-            inst_FIFO_pos     : integer := 32;
-            REG_SIG_PORT_BITS : integer := 4;
-            REG_SIG_BITS      : integer := 32;
-            INST_SIG_BITS     : integer := 64
+            regs_fifo_pos     : integer := 32;
+            inst_fifo_pos     : integer := 32;
+            reg_sig_port_bits : integer := 4;
+            reg_sig_bits      : integer := 32;
+            inst_sig_bits     : integer := 64
         );
         port (
             rstn   : in  std_ulogic;
@@ -60,8 +60,8 @@ package diversity_components_pkg is
             -- Registers signatures
             registers_i : in register_type; 
             -- Signatures
-            reg_signature_o       : out std_logic_vector(REG_SIG_BITS-1 downto 0);
-            inst_signature_o : out std_logic_vector(INST_SIG_BITS-1 downto 0) 
+            reg_signature_o       : out std_logic_vector(reg_sig_bits-1 downto 0);
+            inst_signature_o : out std_logic_vector(inst_sig_bits-1 downto 0) 
          );
     end component signature_calculator;
 
@@ -70,7 +70,7 @@ package diversity_components_pkg is
             repetition     : integer := 1;
             fifo_positions : integer := 32;
             coding_bits    : integer := 1;
-            SIG_BITS       : integer := 64
+            sig_bits       : integer := 64
         );
         port (
             rstn       : in std_ulogic;
@@ -78,7 +78,7 @@ package diversity_components_pkg is
             enable     : in std_logic;
             shift      : in std_logic;
             fifo_input : in std_logic_vector(coding_bits*repetition-1 downto 0);
-            signature  : out std_logic_vector(SIG_BITS-1 downto 0)
+            signature  : out std_logic_vector(sig_bits-1 downto 0)
             );
     end component fifo_signature;
 
@@ -130,12 +130,12 @@ package diversity_components_pkg is
 
     component histograms_memory is
         generic(
-            INST_SIGNATURE_DIFF_BITS : integer := 6;
-            REG_SIGNATURE_DIFF_BITS : integer := 6;
-            CONC_SIGNATURE_DIFF_BITS : integer := 6;
-            MAX_INST_SIGNATURE_DIFF : integer := 32;
-            MAX_REG_SIGNATURE_DIFF  : integer := 32;
-            MAX_CONC_SIGNATURE_DIFF  : integer := 32
+            inst_signature_diff_bits : integer := 6;
+            reg_signature_diff_bits : integer := 6;
+            conc_signature_diff_bits : integer := 6;
+            max_inst_signature_diff : integer := 32;
+            max_reg_signature_diff  : integer := 32;
+            max_conc_signature_diff  : integer := 32
             );
         port (
             rstn   : in  std_ulogic;
@@ -143,9 +143,9 @@ package diversity_components_pkg is
             enable : in  std_logic;
             -- Data to be stored
             inst_diff_i           : in std_logic_vector(31 downto 0);
-            inst_signature_diff_i : in std_logic_vector(INST_SIGNATURE_DIFF_BITS-1 downto 0);
-            reg_signature_diff_i  : in std_logic_vector(REG_SIGNATURE_DIFF_BITS-1 downto 0); 
-            conc_signature_diff_i : in std_logic_vector(CONC_SIGNATURE_DIFF_BITS-1 downto 0);   
+            inst_signature_diff_i : in std_logic_vector(inst_signature_diff_bits-1 downto 0);
+            reg_signature_diff_i  : in std_logic_vector(reg_signature_diff_bits-1 downto 0); 
+            conc_signature_diff_i : in std_logic_vector(conc_signature_diff_bits-1 downto 0);   
             -- Memory read
             addr_i    : in std_logic_vector(13 downto 0); --TODO: change it to adapt
             -- Memory out

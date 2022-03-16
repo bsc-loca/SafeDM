@@ -31,7 +31,7 @@ architecture rtl of fifo_signature is
     signal fifo_mem, fifo_mem_n : fifo_type(fifo_positions-1 downto 0);
 
     constant FIFO_COUNTER_BITS : integer := integer(ceil(log2(real(fifo_positions))));
-    signal fifo_counter : unsigned(FIFO_COUNTER_BITS-1 downto 0); -- Indicates which position of the vector has to be uploaded each time
+    signal fifo_counter : unsigned(fifo_counter_bits-1 downto 0); -- Indicates which position of the vector has to be uploaded each time
 begin
 
 

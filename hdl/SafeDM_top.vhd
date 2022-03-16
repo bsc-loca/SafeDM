@@ -48,17 +48,17 @@ end;
 
 architecture rtl of SafeDM_top is
     -- Number of bits for the signals of the signatures -----------------------------------------------------------------
-    constant REG_SIG_PORT_BITS : integer := regs_FIFO_pos*coding_bits_reg;  -- Total number of bits of each FIFO of each port of the register file
-    constant REG_SIG_BITS : integer := REG_SIG_PORT_BITS*read_ports;        -- Total bits of all the FIFOs of all the ports (=register instruction bits)
-    constant INST_SIG_BITS : integer := coding_bits_inst*inst_FIFO_pos*lanes_number; -- Total number of bits in all the positions of the FIFO where the instructions are stored
+    constant reg_sig_port_bits : integer := regs_fifo_pos*coding_bits_reg;  -- total number of bits of each fifo of each port of the register file
+    constant reg_sig_bits : integer := reg_sig_port_bits*read_ports;        -- total bits of all the fifos of all the ports (=register instruction bits)
+    constant inst_sig_bits : integer := coding_bits_inst*inst_fifo_pos*lanes_number; -- total number of bits in all the positions of the fifo where the instructions are stored
     ---------------------------------------------------------------------------------------------------------------------
 
 
     -- Singals for the signatures ---------------------------------------------------------------------------------------
-    type reg_signature_array is array (natural range <>) of std_logic_vector(REG_SIG_BITS-1 downto 0);
+    type reg_signature_array is array (natural range <>) of std_logic_vector(reg_sig_bits-1 downto 0);
     signal reg_signature : reg_signature_array(1 downto 0);
 
-    type inst_signature_array is array (natural range <>) of std_logic_vector(INST_SIG_BITS-1 downto 0);
+    type inst_signature_array is array (natural range <>) of std_logic_vector(inst_sig_bits-1 downto 0);
     signal inst_signature   : inst_signature_array(1 downto 0);
     ---------------------------------------------------------------------------------------------------------------------
 
@@ -72,8 +72,8 @@ architecture rtl of SafeDM_top is
     -- APB bus ----------------------------------------------------------------------------------------------------------
     -- The number or registers can be changed but has to be bigger or equal to 2 for the rest of the design to automatically adapt
     type registers_vector is array (natural range <>) of std_logic_vector(31 downto 0);
-    constant REGISTERS_NUMBER : integer := 2; -- One to activate SafeDM the other to perform a soft reset through the APB bus 
-    signal r, rin      : registers_vector(REGISTERS_NUMBER-1 downto 0) ;
+    constant registers_number : integer := 2; -- one to activate safedm the other to perform a soft reset through the apb bus 
+    signal r, rin      : registers_vector(registers_number-1 downto 0) ;
     signal slave_index : unsigned(13 downto 0);
 
     -- soft reset through APB bus
@@ -163,7 +163,7 @@ begin
     slave_index <= unsigned(apbi_paddr_i(15 downto 2));
 
     comb : process(rstn, apbi_penable_i, apbi_psel_i, apbi_pwrite_i, apbi_pwdata_i, slave_index, r, diversity_lack_count) is 
-        variable v : registers_vector(REGISTERS_NUMBER-1 downto 0);
+        variable v : registers_vector(registers_number-1 downto 0);
         variable slave_index_int : integer;
     begin
         slave_index_int := to_integer(slave_index);
@@ -178,7 +178,7 @@ begin
         end if;
         -- APB read -------------------------------------------------------------------------------
         -- Read register containing the cycles that there has been lack of diversity
-        if (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = REGISTERS_NUMBER then
+        if (apbi_psel_i and apbi_penable_i) = '1' and apbi_pwrite_i = '0' and slave_index = registers_number then
             apbo_prdata_o <= std_logic_vector(diversity_lack_count);
         else
             apbo_prdata_o <= (others => '0');
