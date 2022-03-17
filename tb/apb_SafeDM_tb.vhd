@@ -1,6 +1,23 @@
--------------------------------------------------------------------------------------------------------------------
--- TOP module of the Testbench
--------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+--
+--   Project              :  SafeDM
+--   File name            :  apb_SafeDM_tb.vhd
+--   Title                :  apb_SafeDM_tb
+--   Description          :  Top of the testbench that generates SafeDM inputs and anlyzes if the outputs 
+--                        :  are correct.
+--   Design library       :  bsc
+--   Analysis dependency  :  bsc
+--   Initialization       :  Initialization is dependent on port initialization values (testbench).
+--   Notes                :  Simulation top
+--   Simulator(s)         :  QuestaSim-64 10.7c
+-----------------------------------------------------------------------------------------------------------------------------------------------
+--    Revisions :
+--           Date           Author        Revision             Comments
+--        03/17/2022     Francisco Bas      1.0         Finished first version
+--                       francisco.basjalon@bsc.es
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+
 library ieee; 
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -18,7 +35,7 @@ entity apb_SafeDM_tb is
 end;
 
 
-architecture rtl of apb_SafeDM_tb is
+architecture behavioral of apb_SafeDM_tb is
 
     component input_sim 
         port(

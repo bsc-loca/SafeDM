@@ -1,6 +1,20 @@
--------------------------------------------------------------------------------------------------------------------
--- This module is part of the testbench and is in charge of generating the inputs for SafeDM
--------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+--
+--   Project              :  SafeDM
+--   File name            :  input_sim.vhd
+--   Title                :  input_sim
+--   Description          :  Inputs for SafeDM module are generated in this component randomly.
+--   Design library       :  bsc
+--   Analysis dependency  :  bsc.diversity_types_pkg
+--   Initialization       :  Initialization is dependent on port initialization values (testbench).
+--   Notes                :  None
+--   Simulator(s)         :  QuestaSim-64 10.7c
+-----------------------------------------------------------------------------------------------------------------------------------------------
+--    Revisions :
+--           Date           Author        Revision             Comments
+--        03/17/2022     Francisco Bas      1.0         Finished first version
+--                       francisco.basjalon@bsc.es
+-----------------------------------------------------------------------------------------------------------------------------------------------
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -25,7 +39,7 @@ entity input_sim is
     );
 end;
 
-architecture rtl of input_sim is
+architecture behavioral of input_sim is
 
     -- SIGNALS FOR INSTRUCTION GENERATION ------------------------
     -- Random numbers to generate the instructions (32 bits)

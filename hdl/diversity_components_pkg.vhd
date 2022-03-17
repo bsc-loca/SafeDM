@@ -1,3 +1,22 @@
+-----------------------------------------------------------------------------------------------------------------------------------------------
+--
+--   Project              :  SafeDM
+--   File name            :  diversity_components_pkg.vhd
+--   Title                :  diversity_components_pkg
+--   Description          :  Pakage containing the all the bsc library compoenent definitions
+--   Design library       :  bsc
+--   Analysis dependency  :  bsc.diverity_types_pkg
+--   Initialization       :  None (package)
+--   Notes                :  None
+--   Simulator(s)         :  QuestaSim-64 10.7c
+-----------------------------------------------------------------------------------------------------------------------------------------------
+--    Revisions :
+--           Date           Author        Revision             Comments
+--        03/17/2022     Francisco Bas      1.0         Finished first version
+--                       francisco.basjalon@bsc.es
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.math_real.all;

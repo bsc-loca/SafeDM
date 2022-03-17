@@ -1,7 +1,22 @@
 -----------------------------------------------------------------------------------------------------------------------------------------------
--- This module uses the instructions in the decode stage and the read registers from the file register to generate both the 
--- instructions and register signatures of the core
+--
+--   Project              :  SafeDM
+--   File name            :  signature_calculator.vhd
+--   Title                :  signature_calculator
+--   Description          :  This module uses the instructions in the decode stage and the read ports from the file register to generate 
+--                        :  both the core instruction and register signatures 
+--   Design library       :  bsc
+--   Analysis dependency  :  bsc
+--   Initialization       :  Initialized by RESET
+--   Notes                :  None
+--   Simulator(s)         :  QuestaSim-64 10.7c
 -----------------------------------------------------------------------------------------------------------------------------------------------
+--    Revisions :
+--           Date           Author        Revision             Comments
+--        03/17/2022     Francisco Bas      1.0         Finished first version
+--                       francisco.basjalon@bsc.es
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
 
 library ieee;
 use ieee.std_logic_1164.all;

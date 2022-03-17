@@ -1,3 +1,22 @@
+-----------------------------------------------------------------------------------------------------------------------------------------------
+--
+--   Project              :  SafeDM
+--   File name            :  diversity_types_pkg.vhd
+--   Title                :  diversity_types_pkg
+--   Description          :  Pakage containing the all the bsc library type definitions
+--   Design library       :  bsc
+--   Analysis dependency  :  None
+--   Initialization       :  None (package)
+--   Notes                :  Trhough constants "lanes_number" and "read_ports" this parameters in the desing
+--                        :  and in the test bench can be configured
+--   Simulator(s)         :  QuestaSim-64 10.7c
+-----------------------------------------------------------------------------------------------------------------------------------------------
+--    Revisions :
+--           Date           Author        Revision             Comments
+--        03/17/2022     Francisco Bas      1.0         Finished first version
+--                       francisco.basjalon@bsc.es
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
 library ieee;
 use ieee.std_logic_1164.all;
 

@@ -1,6 +1,21 @@
 -----------------------------------------------------------------------------------------------------------------------------------------------
--- This module implements a FIFO which also generates as the output the concatenated vector of all its positions 
+--
+--   Project              :  SafeDM
+--   File name            :  fifo_signature.vhd
+--   Title                :  fifo_signature
+--   Description          :  This module implements a FIFO which also generates as the output the concatenated vector of all its positions 
+--   Design library       :  bsc
+--   Analysis dependency  :  None
+--   Initialization       :  Initialized by RESET
+--   Notes                :  None
+--   Simulator(s)         :  QuestaSim-64 10.7c
 -----------------------------------------------------------------------------------------------------------------------------------------------
+--    Revisions :
+--           Date           Author        Revision             Comments
+--        03/17/2022     Francisco Bas      1.0         Finished first version
+--                       francisco.basjalon@bsc.es
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
 
 library ieee;
 use ieee.std_logic_1164.all;

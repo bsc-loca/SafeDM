@@ -1,9 +1,22 @@
 -----------------------------------------------------------------------------------------------------------------------------------------------
--- Design top:
 --
--- This module uses the instructions in the decode stage of two cores and the read registers from the file register to determine whether
--- there is or not diversity between two cores
+--   Project              :  SafeDM
+--   File name            :  SafeDM_top.vhd
+--   Title                :  SafeDM_top
+--   Description          :  SafeDM uses the instructions in the decode stage of two cores and the data read from the register file ports to 
+--                        :  determine whether there is or there is not diversity between two cores. 
+--   Design library       :  bsc
+--   Analysis dependency  :  bsc
+--   Initialization       :  Initialized by RESET
+--   Notes                :  Desisgn top
+--   Simulator(s)         :  QuestaSim-64 10.7c
 -----------------------------------------------------------------------------------------------------------------------------------------------
+--    Revisions :
+--           Date           Author        Revision             Comments
+--        03/17/2022     Francisco Bas      1.0         Finished first version
+--                       francisco.basjalon@bsc.es
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
 
 library ieee; 
 use ieee.std_logic_1164.all;
@@ -19,8 +32,8 @@ entity SafeDM_top is
         coding_method     : integer := 0;                   -- It can use none (0) or ECC (1) to encode the instructions and registers writes
         coding_bits_reg   : integer := 64;                  -- Number of bits saved for each register, if register is encoded with ECC the correct number of bits has to be selected
         coding_bits_inst  : integer := 32;                  -- Number of bits saved for each instruction, if instruction is encoded with ECC the correct number of bits has to be selected
-        regs_FIFO_pos     : integer := 5;                   -- Number of read registers FIFO positions to calculate the registers signature
-        inst_FIFO_pos     : integer := 6                    -- Number of instructions FIFO positions to calculate the instruction signature
+        regs_fifo_pos     : integer := 5;                   -- number of read registers fifo positions to calculate the registers signature
+        inst_fifo_pos     : integer := 6                    -- Number of instructions FIFO positions to calculate the instruction signature
         );
     port (
         rstn           : in  std_ulogic;
