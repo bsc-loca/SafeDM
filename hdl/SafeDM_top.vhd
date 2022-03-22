@@ -52,7 +52,7 @@ entity SafeDM_top is
         -- Registers signatures
         registers_i : in register_type_vector;        -- Signals to calculate the registers signature
         -- hold signals
-        hold : in std_logic_vector(1 downto 0);       -- Signal that stalls the pipeline (1 bit per core)
+        hold_i : in std_logic_vector(1 downto 0);       -- Signal that stalls the pipeline (1 bit per core)
         -----------------------------------------------------
         diversity_lack_o : out std_logic              -- It is set high when there is no diversity
      );
@@ -85,7 +85,7 @@ architecture rtl of SafeDM_top is
     -- APB bus ----------------------------------------------------------------------------------------------------------
     -- The number or registers can be changed but has to be bigger or equal to 2 for the rest of the design to automatically adapt
     type registers_vector is array (natural range <>) of std_logic_vector(31 downto 0);
-    constant registers_number : integer := 2; -- one to activate safedm the other to perform a soft reset through the apb bus 
+    constant registers_number : integer := 1; -- one to activate safedm the other to perform a soft reset through the apb bus 
     signal r, rin      : registers_vector(registers_number-1 downto 0) ;
     signal slave_index : unsigned(13 downto 0);
 
@@ -117,7 +117,7 @@ begin
             rstn   => internal_rstn, 
             clk    => clk, 
             enable => enable,
-            hold_i => hold(n),
+            hold_i => hold_i(n),
             -- Instructions signature
             instructions_i => instructions_i(n),
             -- Registers signatures
@@ -183,11 +183,11 @@ begin
         v := r;
         -- Write registers -------------------------------------------------------------- 
         if (apbi_psel_i and apbi_pwrite_i) = '1' and slave_index = 0 then
-            -- Soft reset
+            -- Configuration: Soft reset (bit 0), Enable (bit 1)
             v(slave_index_int) := apbi_pwdata_i;
-        elsif (apbi_psel_i and apbi_pwrite_i) = '1' and slave_index = 1 then
-            -- Enable
-            v(slave_index_int) := apbi_pwdata_i;
+        --elsif (apbi_psel_i and apbi_pwrite_i) = '1' and slave_index = 1 then
+        --    -- Enable
+        --    v(slave_index_int) := apbi_pwdata_i;
         end if;
         -- APB read -------------------------------------------------------------------------------
         -- Read register containing the cycles that there has been lack of diversity
@@ -214,7 +214,7 @@ begin
     -- If soft reset or regular reset is risen, all component resets
     internal_rstn <= r_soft_rstn and rstn;
     -- Enable
-    enable <= r(1)(0);
+    enable <= r(0)(1);
     -----------------------------------------------------------------------------------------------------------------------------------------------------------
 
 end;

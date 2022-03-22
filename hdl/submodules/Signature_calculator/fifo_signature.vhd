@@ -27,7 +27,7 @@ entity fifo_signature is
         repetition     : integer := 1;  -- Number of bits in a FIFO position is coding_bits multiplied by coding_bits (useful for multilane processors)
         fifo_positions : integer := 32; -- Number of memory positions in the FIFO
         coding_bits    : integer := 1;  -- Number of bits of each position
-        SIG_BITS       : integer := 64  -- Resulting number of bits when all the bist in all the positions are added
+        sig_bits       : integer := 64  -- Resulting number of bits when all the bist in all the positions are added
     );
     port (
         rstn   : in std_ulogic;
@@ -35,7 +35,7 @@ entity fifo_signature is
         enable : in std_logic;
         shift  : in std_logic;                                                -- When this input is set to 1, the FIFO acts as a shift register (used for the hold signal)
         fifo_input : in std_logic_vector(coding_bits*repetition-1 downto 0);  -- Values that are stored
-        signature : out std_logic_vector(SIG_BITS-1 downto 0)            -- Concatenation signature output
+        signature : out std_logic_vector(sig_bits-1 downto 0)            -- Concatenation signature output
     );
 end;
 
@@ -45,7 +45,7 @@ architecture rtl of fifo_signature is
     type fifo_type is array (natural range <>) of std_logic_vector(coding_bits*repetition-1 downto 0); 
     signal fifo_mem, fifo_mem_n : fifo_type(fifo_positions-1 downto 0);
 
-    constant FIFO_COUNTER_BITS : integer := integer(ceil(log2(real(fifo_positions))));
+    constant fifo_counter_bits : integer := integer(ceil(log2(real(fifo_positions))));
     signal fifo_counter : unsigned(fifo_counter_bits-1 downto 0); -- Indicates which position of the vector has to be uploaded each time
 begin
 

@@ -1,0 +1,24 @@
+\section{Simulation}
+
+\subsection{Test Bench}
+
+The design also contains a test bench. First, the test bench resets and enables SafeDM writing in the configuration register through the APB interface. The instructions and registers values fed as inputs to SafeDM are randomly generated using pseudo-random number generators. At some point, generated instructions and registers values of both cores coincide, simulating a lack of diversity scenario. Later, the counter storing the cycles where the system lacked diversity is read and compared with the expected value. The test bench will fail if the expected and obtained values do not coincide.
+
+Changing the constants \textit{lanes\_number} and \textit{read\_ports} in the VHDL package \textit{diversity\_type\_pkg.vhd} will also modify the test bench to generate the proper inputs for the SafeDM module.
+
+
+
+\subsection{Performing simulation}
+
+We have performed the simulation using \textit{Questa Sim 10.7c}. You can reproduce the simulation using the Makefile inside the folder \textit{tb}. Several recipes:
+
+\begin{itemize}
+    \item \textbf{compile:} It creates the work and safety libraries and compiles all the VHDL files.
+    \item \textbf{vsim-launch:} It compiles and launches the QuestaSim graphical user interface simulation.
+    \item \textbf{vsim:} It compiles and runs the simulation in batch mode.
+    \item \textbf{launch-tb:} It compiles, runs the simulation in batch mode and analyzes the test-bench results.
+    \item \textbf{clean:} It removes temporal files.                                                         
+\end{itemize}
+
+\end{document}
+

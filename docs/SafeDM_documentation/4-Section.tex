@@ -1,0 +1,180 @@
+%\newpage
+\section{Implementing the IP core}
+\label{implementation}
+
+As mention in the section \ref{port_description}, to implement SafeDM we need a wrapper. The function of this wrapper is to adapt the input signals. Below is an example of a wrapper used in a SoC designed by Cobham Gaisler. The SoC cores are Noel-V 64-bits cores. The noel-V core is dual-issue and has four read register file ports.
+
+As you can see in the example, the APB signals are a custom type defined by gaisler that has to be converted into \textit{std\_logic} and \textit{std\_logic\_vector} types. On the other hand the \textit{std\_logic} and \textit{std\_logic\_vector} types of the instructions and registers inputs have to be converted into the \textit{instruction\_type\_vector} and \textit{register\_type\_vector\ types}.
+
+
+%Try to put it more clean and beatuful
+\belowcaptionskip=-10pt
+\begin{lstlisting}[label=ins-prot,caption=SafeDM instance example,style=vhdl,frame=none,tabsize=2]
+
+library ieee; 
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use ieee.math_real.all;
+-- AMBA 2.0 Cobham Gaisler's library 
+-- It defines AHB and APB specific types
+library grlib;
+use grlib.amba.all;
+use grlib.devices.all;
+-- Library containing SafeDM
+library bsc;
+use bsc.diversity_types_pkg.all;
+use bsc.diversity_components_pkg.SafeDM_top;
+
+
+entity apb_wrapper_diversity is
+	generic (
+		-- APB generics
+		pindex : integer := 0;
+		paddr  : integer := 0;
+		pmask  : integer := 16#fff#;
+		-- SafeDM configuration
+		coding_method    : integer := 1;
+		coding_bits_reg  : integer := 64;
+		coding_bits_inst : integer := 32;
+		regs_fifo_pos    : integer := 5;
+		inst_fifo_pos    : integer := 6
+	);
+	port (
+		rstn   : in std_logic;
+		clk    : in std_logic;
+		-- Apb signals
+		apbi_i : in apb_slv_in_type;
+		apbo_o : out apb_slv_out_type;
+		-- Instructions sign signals (both cores)
+		-- Core 1
+		lane1_inst_value_1_i : in std_logic_vector(31 downto 0); 
+		lane2_inst_value_1_i : in std_logic_vector(31 downto 0);  
+		inst_valid_1_i   : in std_logic_vector(1 downto 0); 
+		-- Core 2
+		lane1_inst_value_2_i : in std_logic_vector(31 downto 0);  
+		lane2_inst_value_2_i : in std_logic_vector(31 downto 0);  
+		inst_valid_2_i   : in std_logic_vector(1 downto 0); 
+		-- Registers sign signals (both cores)
+		-- Core 1
+		port1_ren_1_i   : in std_logic;
+		port2_ren_1_i   : in std_logic;
+		port3_ren_1_i   : in std_logic; 
+		port4_ren_1_i   : in std_logic; 
+		port1_rdata_1_i : in std_logic_vector(63 downto 0);   
+		port2_rdata_1_i : in std_logic_vector(63 downto 0);
+		port3_rdata_1_i : in std_logic_vector(63 downto 0);
+		port4_rdata_1_i : in std_logic_vector(63 downto 0);
+		-- Core 2
+		port1_ren_2_i   : in std_logic;
+		port2_ren_2_i   : in std_logic;
+		port3_ren_2_i   : in std_logic; 
+		port4_ren_2_i   : in std_logic; 
+		port1_rdata_2_i : in std_logic_vector(63 downto 0);   
+		port2_rdata_2_i : in std_logic_vector(63 downto 0);
+		port3_rdata_2_i : in std_logic_vector(63 downto 0);
+		port4_rdata_2_i : in std_logic_vector(63 downto 0);
+		-- Hold signals
+		hold_1_i : in std_logic;
+		hold_2_i : in std_logic;
+		-- Lack of diversity
+		diversity_lack_o : out std_logic
+	);
+	end;
+
+architecture structural of apb_wrapper_diversity is
+	
+
+	-- APB configuration ----------------------------------------
+	constant REVISION  : integer := 0;
+	constant VENDOR_ID : integer := 16#0e#;
+	constant DEVICE_ID : integer := 16#002#;
+
+	constant PCONFIG : apb_config_type := (
+	0 => ahb_device_reg (VENDOR_ID, DEVICE_ID, 0, REVISION, 0),
+	1 => apb_iobar(paddr, pmask));
+	-------------------------------------------------------------
+
+	
+	-- Inputs to SafeDM
+	signal instructions : instruction_type_vector;
+	signal registers    : register_type_vector;
+	signal hold : std_logic_vector(1 downto 0);
+
+begin
+
+	-- SafeDM inputs are driven to the input register_type_vector and 
+	-- instruction_type_vector types.
+	-- INSTRUCTIONS
+	-- Core 1 assignation
+	instructions(0).inst_value(0) <= lane1_inst_value_1_i;
+	instructions(0).inst_value(1) <= lane2_inst_value_1_i;
+	instructions(0).valid     <= inst_valid_1_i;  
+	-- Core 2 assignation
+	instructions(1).inst_value(0) <= lane1_inst_value_2_i;
+	instructions(1).inst_value(1) <= lane2_inst_value_2_i;
+	instructions(1).valid     <= inst_valid_2_i;  
+	-- REGISTERS
+	-- Core 1 assignement
+	registers(0).value(0) <= port1_rdata_1_i; 
+	registers(0).value(1) <= port2_rdata_1_i; 
+	registers(0).value(2) <= port3_rdata_1_i; 
+	registers(0).value(3) <= port4_rdata_1_i; 
+	registers(0).ren(0)   <= port1_ren_1_i; 
+	registers(0).ren(1)   <= port2_ren_1_i; 
+	registers(0).ren(2)   <= port3_ren_1_i; 
+	registers(0).ren(3)   <= port4_ren_1_i; 
+	-- Core 2 assignement
+	registers(1).value(0) <= port1_rdata_2_i; 
+	registers(1).value(1) <= port2_rdata_2_i; 
+	registers(1).value(2) <= port3_rdata_2_i; 
+	registers(1).value(3) <= port4_rdata_2_i; 
+	registers(1).ren(0)   <= port1_ren_2_i; 
+	registers(1).ren(1)   <= port2_ren_2_i; 
+	registers(1).ren(2)   <= port3_ren_2_i; 
+	registers(1).ren(3)   <= port4_ren_2_i; 
+	-- Hold signals
+	hold <= hold_2_i & hold_1_i;
+
+	
+	apb_diversity_inst : SafeDM_top
+	generic map(
+		coding_method    => coding_method,
+		coding_bits_reg  => coding_bits_reg,
+		coding_bits_inst => coding_bits_inst,
+		regs_fifo_pos    => regs_fifo_pos,
+		inst_fifo_pos    => inst_fifo_pos
+		)
+	port map(
+		rstn          => rstn, 
+		clk           => clk, 
+		-- Apb signals: From Cobham Gailer's types
+		-- to std_logic and std_logic_vectors
+		apbi_psel_i     => apbi_i.psel(pindex),     
+		apbi_paddr_i    => apbi_i.paddr,    
+		apbi_penable_i  => apbi_i.penable,  
+		apbi_pwrite_i   => apbi_i.pwrite,   
+		apbi_pwdata_i   => apbi_i.pwdata,   
+		apbo_prdata_o   => apbo_o.prdata,   
+		-- Singals to calculate sigantures
+		-- Instructions signature inputs
+		instructions_i => instructions,
+		-- Registers signatures inputs
+		registers_i => registers,
+		-- Hold signals
+		hold => hold,
+		-- Lack of diversity flag
+		diversity_lack_o => diversity_lack_o
+		);
+
+
+	-- APB bus output signals
+	apbo_o.pirq    <= (others => '0');
+	apbo_o.pindex  <= pindex;
+	apbo_o.pconfig <= PCONFIG;
+	
+end;  
+
+\end{lstlisting}
+
+
+\hspace{2cm}

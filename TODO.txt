@@ -4,6 +4,8 @@
 *Take a look to the warnings
 *Get hardware resources with ECC
 **Add headers
+*Add documentation -> Check some errors with Sergi, resource section?¿, Finish puting it beautiful, read it for the last time to correct errors
+
 
 review the dual lane scheme
 Take a look why the registers enable signal are registered
@@ -21,7 +23,6 @@ Change way in which registers behave in the FIFO -> Since there are several regi
                                                     enters the FIFO. If we do it like that we could be accounting for values that already left the
                                                     pipeline and they cannot produce diversity. To solve this issue we should leave the FIFO position
                                                     with an "empty" value if no data is read/write on that port.
-Add documentation
 
 
 ** solved items

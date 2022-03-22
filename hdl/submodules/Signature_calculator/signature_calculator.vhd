@@ -293,15 +293,15 @@ begin
     end generate one_lane;
 
 
-    -- This is a FIFO with many positions as 'sabed_inst'. Every position of the fifo has space for two instructions, one of each lane.
+    -- This is a FIFO with many positions as 'inst_fifo_pos'. Every position of the fifo has space for two instructions, one of each lane.
     -- Every cycle new pair of instructions is stored and the less recently stored are discarded.
     -- The signature is calculated as the sumation of all the stored instructions.
-    fifo_instructions_inst2 : fifo_signature
+    fifo_instructions : fifo_signature
         generic map(
             repetition     => lanes_number,
-            fifo_positions => inst_FIFO_pos,
+            fifo_positions => inst_fifo_pos,
             coding_bits    => coding_bits_inst,
-            SIG_BITS       => INST_SIG_BITS
+            sig_bits       => inst_sig_bits
             )
         port map(
             rstn       => rstn,

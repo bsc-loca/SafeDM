@@ -1,0 +1,28 @@
+\section{Library dependences}
+Table \ref{dep_tab} shows the VHDL libraries used when instantiating SafeDM.
+
+\begin{table}[H]
+	\caption{Library dependencies}
+	\label{dep_tab}
+	\centering
+	\begin{small}
+	\begin{tabular}{|l|l|l|p{6cm}|}
+		\hline
+		\textbf{Library} & \textbf{Package}  & \textbf{Imported units}  & \textbf{Description} \\
+		\hline
+		IEEE & std\_logic\_1164 & Types & Standard logic types\\
+		\hline
+		IEEE & numeric\_std & Functions and types & Arithmetic functions and signed and unsigned types\\
+		\hline
+		IEEE & math\_real & Constants and functions & Mathematical functions and constants\\
+		\hline
+		BSC & diversity\_types\_pkg & Types and constants & Custom SafeDM types and configuration constants\\
+		\hline
+		BSC & diversity\_components\_pkg & SafeDM components & SafeDM component definitions\\
+		\hline
+	\end{tabular}
+\end{small}
+\end{table}
+
+
+\hspace{2cm}

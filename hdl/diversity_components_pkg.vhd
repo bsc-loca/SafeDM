@@ -50,7 +50,7 @@ package diversity_components_pkg is
         -- Registers signatures
         registers_i : in register_type_vector;        -- Signals to calculate the registers signature
         -- hold signals
-        hold : in std_logic_vector(1 downto 0);       -- Signal that stalls the pipeline
+        hold_i : in std_logic_vector(1 downto 0);       -- Signal that stalls the pipeline
         -----------------------------------------------------
         diversity_lack_o : out std_logic              -- It is set high when there is no diversity
      );

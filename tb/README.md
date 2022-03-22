@@ -1,6 +1,6 @@
 # Test-bench
 
-This folder contains all the files needed to execute a test bench for the SafeDM module. The file `apb_SafeDM_tb.vhd` is the top VHDL design. In this file the top of SafeDM is instantiated and all its inputs are simulated.
+This folder contains all the files needed to execute a test bench for the SafeDM module. We have employed QuestaSim 10.7c to perform the simulations. The file `apb_SafeDM_tb.vhd` is the top VHDL design. In this file the top of SafeDM is instantiated and all its inputs are simulated.
 
 In the `input_sim.vhd` file, a component that randomly generates the inputs for SafeDM (instructions and registers) is defined. The input_sim module also have two inputs for synchronizing the simulated registers and instructions as if both cores where executing the same.
 

@@ -188,7 +188,7 @@ begin
         -- Registers signatures
         registers_i => registers,         -- Signals to calculate the registers signature
         -- hold signals
-        hold => hold,                     -- Signal that stalls the pipeline
+        hold_i => hold,                     -- Signal that stalls the pipeline
         -----------------------------------------------------
         diversity_lack_o => diversity_lack             -- It is set high when there is no diversity
      );
@@ -241,8 +241,8 @@ begin
         wait for 10 ns;
 
         -- Enable SafeDM
-        write_register := x"00000001";
-        apb_write(1*4, write_register, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata);
+        write_register := x"00000002";
+        apb_write(0*4, write_register, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata);
         wait for 10 ns;
 
         ------------------------------------------------------------------------------------------------------------
@@ -278,14 +278,14 @@ begin
         -- STOP SAFEDM --------------------------------------------------------------------------------------------
         -- Stop critical section core1
         write_register := x"00000000";
-        apb_write(1*4, write_register, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata);
+        apb_write(0*4, write_register, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata);
         wait for 80 ns;
         ------------------------------------------------------------------------------------------------------------
 
         ---- GATHER RESULTS ------------------------------------------------------------------------------------------
         cycles_expected <= 170;
         ---- apb_read(addr, print, compare value, apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata)
-        apb_read(2*4, "Cycles without diversity:     ",cycles_expected , apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata, data_read);
+        apb_read(1*4, "Cycles without diversity:     ",cycles_expected , apbo_prdata, apbi_psel, apbi_penable, apbi_pwrite, apbi_paddr, apbi_pwdata, data_read);
         wait for 10 ns;
         ------------------------------------------------------------------------------------------------------------
 
