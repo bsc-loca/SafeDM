@@ -1,17 +1,16 @@
 * Adapt to one lane/ one register--> Check why are we getting different number of cycles without diversity
 ** Add license
 ** Solve uppercase issue 
-*Take a look to the warnings
-*Get hardware resources with ECC
+**Take a look to the warnings
+**Get hardware resources with ECC
 **Add headers
 *Add documentation -> Check some errors with Sergi, resource section?¿, Finish puting it beautiful, read it for the last time to correct errors
+**register outputs
 
 
 review the dual lane scheme
-Take a look why the registers enable signal are registered
-register outputs
 Add driver
-Try it in a bitstream to check that works properly
+Try it in a bitstream to check that works properly with and without ECC
 
 Add write ports -> Problem with write ports is that wb is the last stage of the pipeline so 
                    the values stored in the FIFO leave the pipeline the next transition and

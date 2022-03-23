@@ -81,7 +81,7 @@ architecture behavioral of apb_SafeDM_tb is
             wait for 10 ns;
             -- Third cycle
             report print & integer'image(to_integer(unsigned(apbo_prdata))) & " ~ " & integer'image(compare_value) severity note;
-            assert compare_value + 10 > to_integer(unsigned(apbo_prdata)) and compare_value - 10 < to_integer(unsigned(apbo_prdata)) report print & "Cycles without diversity = " & integer'image(to_integer(unsigned(apbo_prdata))) & " does not match the value of the testbench = " & integer'image(compare_value) severity error;
+            assert compare_value + 30 > to_integer(unsigned(apbo_prdata)) and compare_value - 25 < to_integer(unsigned(apbo_prdata)) report print & "Cycles without diversity = " & integer'image(to_integer(unsigned(apbo_prdata))) & " does not match the value of the testbench = " & integer'image(compare_value) severity error;
             apbi_penable <= '0';
             apbi_psel <= '0';
             data <= (others => '0');

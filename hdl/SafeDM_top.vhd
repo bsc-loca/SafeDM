@@ -82,6 +82,10 @@ architecture rtl of SafeDM_top is
     signal diversity_lack : std_logic;
     signal diversity_lack_count : unsigned(31 downto 0);
 
+    -- Register output
+    signal diversity_lack_reg : std_logic;
+
+
     -- APB bus ----------------------------------------------------------------------------------------------------------
     -- The number or registers can be changed but has to be bigger or equal to 2 for the rest of the design to automatically adapt
     type registers_vector is array (natural range <>) of std_logic_vector(31 downto 0);
@@ -93,6 +97,7 @@ architecture rtl of SafeDM_top is
     signal soft_rstn, r_soft_rstn : std_logic;
     signal internal_rstn : std_logic;
     ---------------------------------------------------------------------------------------------------------------------
+
 
 begin
 
@@ -140,7 +145,6 @@ begin
             diversity_lack <= '0';
         end if;
     end process;
-    diversity_lack_o <= diversity_lack and enable;
 
     -- Count how many cycles there has been lack of diversity
     process(clk)
@@ -148,7 +152,9 @@ begin
         if rising_edge(clk) then    
             if rstn = '0' then
                 diversity_lack_count <= (others => '0');
+                diversity_lack_reg <= '0'; 
             else 
+                diversity_lack_reg <= diversity_lack and enable; 
                 if diversity_lack = '1' and enable = '1' then
                     diversity_lack_count <= diversity_lack_count + 1;
                 end if;
@@ -156,7 +162,7 @@ begin
         end if;
     end process;
 
-
+    diversity_lack_o <= diversity_lack_reg;
 
 
     -----------------------------------------------------------------------------------------------------------------------------------------------------------
