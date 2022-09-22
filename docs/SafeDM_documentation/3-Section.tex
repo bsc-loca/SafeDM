@@ -1,0 +1,9 @@
+\section{Clocking and reset}
+
+\subsection{Clocking}
+SafeDM has a single input clock. You should connect the appropriate AHB bus clock to this clock input. 
+
+\subsection{Resets}
+SafeDM reset \textit{rstn} is an active-Low synchronous reset to the core. All registers are reset to power-on conditions. Apart from the external reset signal, SafeDM can be reset through the configuration APB register \ref{cfg0}.  
+
+

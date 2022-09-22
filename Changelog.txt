@@ -1,0 +1,87 @@
+|------------------------------------------------------------------------------------|
+| Version 1.0							                     |
+|------------------------------------------------------------------------------------|
+|                                                                                    |
+|INSTRUCTION SIGNATURE: Instruction signature is calculated adding all the           |
+|instructions extended hamming code (7 bits each instruction). The difference        |
+|is computed as the absolute value of the difference of both signatures.             |
+|                                                                                    |
+|REGISTER SIGNATURE: Register signature is calculated concatenating all the          |
+|registers extended hamming code. The difference is calculated comparing one by      |
+|one these values.                                                                   |
+|                                                                                    |
+|MEMORY MAP (HISTOGRAMS): Bins of the instruction signature difference are           |
+|unven. Number of bins is calculated automatically as a function of the number       |
+|of instructions and the instruction coding bits.                                    |
+|                                                                                    |
+|Memory:                                                                             |
+|--> Difference of instruction histogram                                             |
+|--> Instruction signature difference histograms                                     |
+|--> Register signature difference histograms                                        |
+|                                                                                    |
+|PARAMETERS:                                                                         |
+|coding_method = 2                                                                   |
+|coding_bits_reg  = 8                                                                |
+|coding_bits_inst = 7                                                                |
+|regs_number = 32                                                                    |
+|saved_instructions = 32                                                             |
+|                                                                                    |
+|------------------------------------------------------------------------------------|
+|------------------------------------------------------------------------------------|
+| Version 2.0							                     |
+|------------------------------------------------------------------------------------|
+|                                                                                    |
+|--> INSTRUCTION SIGNATURE CONCATENATION ADDED: appart from the instrucction         |
+| signature calculated by summation another way of calculating the signature         |
+| concatenaiting the instructions is added                                           |
+|                                                                                    |
+|--> REGISTER SIGNATURE is changed to operate as the instructions signature,         |
+| concatenating all the values of the last n cycles. This is done for the 4          |
+| read ports of the register file and the signatur is the concatenation of all the   |
+| values of all the ports                                                            |
+|                                                                                    |
+|--> NEW HISTOGRAM is stored with the sum of the signatures of the registers and     |
+| the instructions concatenation.                                                    |
+|                                                                                    |
+|                                                                                    |
+|Memory:                                                                             |
+|--> Difference of instruction histogram                                             |
+|--> Register signature difference histograms                                        |
+|--> Instruction signature difference histograms (concatenation)                     |
+|--> Register+instructions signature difference histograms                           |
+|--> Instruction signature difference histograms (summation)                         |
+|                                                                                    |
+|                                                                                    |
+|                                                                                    |
+|                                                                                    |
+|                                                                                    |
+|                                                                                    |
+                                                                                    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

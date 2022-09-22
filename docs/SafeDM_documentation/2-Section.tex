@@ -1,0 +1,122 @@
+\section{Product specification}
+
+
+
+\subsection{Configuration options}
+\label{confg_chap}
+
+Several SafeDM parameters have to be correctly configured for SafeDM to adapt to the concrete architecture of the replicated cores. Table \ref{generics} shows SafeDM VHDL generics that allow configuring the hardware design.
+
+Table \ref{generics} shows SafeDM configuration parameters (VDHL generics). 
+\\
+\begin{table}[H]
+	\caption{Configuration options (VHDL ports)}
+	\label{generics}
+	\centering
+	\begin{small}
+		\begin{tabular}{|l|p{6cm}|l|l|}
+			\hline
+			\textbf{Generic} & \textbf{Description}  & \textbf{Allowed range}  & \textbf{Default}\\
+			\hline
+			CODING\_METHOD   & When it is set to 1, ECC (Error Correction Codes) redundant bits are generated for the instructions and register value inputs. SafeDM stores the ECC\-generated bits instead of storing all  instruction and register bits saving FPGA resources.  All the original input bits are stored if this generic is set to 0. & 0 to 1 & 0\\
+			\hline
+			CODING\_BITS\_REG  & Register FIFO width in bits. It depends on the selected coding method and the size of the registers of the cores. & - & 64\\
+			\hline
+			CODING\_BITS\_INST & Instruction FIFO width in bits. It depends on the selected coding method and the size of the instructions of the cores. & - & 32\\
+			\hline
+			REGS\_FIFO\_POS    & Register FIFO number of positions. & - & 5\\
+			\hline
+			INST\_FIFO\_POS    & Instruction FIFO number of positions. & - & 6\\
+			\hline
+		\end{tabular}
+	\end{small}
+\end{table}
+
+%use any kind of rerence to link the parameters of the table with the explanations?¿?¿
+%Why is this error appearing?
+
+When the CODING\_METHOD generic is set to 1, ECC are calculated applying the extended hamming code method. For inputs that are a power of 2, the output is \(output\_bits=log2(input\_bits)+2\). For instance, if the instruction length of the cores is 32, the output length after applying the extended hamming code method will have \(5+2=7\) bits. Therefore, CODING\_BITS\_INST generic must be set to 7. 
+
+As explained before in section \ref{descrption_subsec}, SafeDM generates two signatures storing the last instructions from the decode stage, and the last values read and written in the register file. To generate the signatures, it employs two FIFOs, one for each signature. The Instruction FIFO depth is configured using the INST\_FIFO\_POS generic. Its value must be equal to the number of pipeline stages from decode to the end of the pipeline including decode. The register FIFO depth is configured using the REGS\_FIFO\_POS generic. Its value must be equal to the number of pipeline stages from the register file stage to the end of the pipeline including the register file stage.
+
+Different core architectures can have a different number of read and write ports in the register file or they can be single or multiple\-issue with a different number of lanes. This parameters can be configured in the file containing the type definitions \textit{diversity\_types\_pkg.vhd} changing the value of the constants \textit{lanes\_number} and \textit{read\_ports}. Notice that SafeDM is not devised to work with out\-of\-order superscalar processors. 
+
+
+\subsection{Port Descriptions}
+\label{port_description}
+
+Table \ref{t_ports} shows the interface of the IP core (VHDL ports).
+\begin{table}[H]
+	\caption{Signal descriptions (VHDL ports)}
+	\label{t_ports}
+	\centering
+	\begin{footnotesize}
+	\begin{tabular}{|l|l|c|p{6cm}|l|}
+		\hline
+		\textbf{Signal name} & \textbf{Type} & \textbf{I/O} & \textbf{Description} & \textbf{Active}\\
+		\hline
+		RSTN                 & STD\_LOGIC                & I & Reset                           & Low\\
+		\hline
+		CLK                  & STD\_LOGIC                & I & AHB master bus clock            & -\\
+		\hline
+		APBI\_PSEL\_I        & STD\_LOGIC                & I & APB slave selection signal      & -\\
+		\hline
+		APBI\_PADDR\_I       & STD\_LOGIC\_VECTOR        & I & APB address signal              & -\\
+		\hline
+		APBI\_PENABLE\_I     & STD\_LOGIC                & I & APB enable signal               & -\\
+		\hline
+		APBI\_PWRITE\_I      & STD\_LOGIC                & I & APB read/write selection signal & -\\
+		\hline
+		APBI\_PWDATA\_I      & STD\_LOGIC\_VECTOR        & I & APB write data signal           & -\\
+		\hline
+		APBI\_PRDATA\_O      & STD\_LOGIC\_VECTOR        & O & APB read data signal            & -\\
+		\hline
+		INSTRUCTIONS\_I      & INSTRUCTION\_TYPE\_VECTOR & I & This type definition is a two-vector positions (one for each core) of the type \textit{instruction\_type}. This type includes an instruction value and a bit indicating if that instruction is valid per lane. The instructions value signals should come from the decode stage. & -\\
+		\hline
+		REGISTERS\_I         & REGISTER\_TYPE\_VECTOR    & I & This type definition is a two-vector positions (one for each core) of the type \textit{register\_type}.This type definition includes a register value and a bit indicating if that register is read per register file read port. The registers value should come from the register file. & -\\
+		\hline
+		HOLD\_I              & STD\_LOGIC\_VECTOR        & I & This signal is a two-bits vector containing the hold signal of each core. The hold signal is set to 1 when the core pipeline is held.  & High\\
+		\hline
+		DIVERSISTY\_LACK\_O  & STD\_LOGIC                & O & This signal rises when the signatures from both cores coincide meaning that there is no diversity between both core replicas. & High\\
+		\hline
+	\end{tabular}
+\end{footnotesize}
+\end{table}
+
+As explained later in section \ref{implementation}, SafeDM top VHDL file should be instantiated in an APB wrapper to drive the APB signals to SafeDM top. This wrapper should also define the input signals of the types \textit{instruction\_type\_vector} and \textit{register\_type\_vector} and wire those signals with the ones coming from the cores. This kind of design allows configuring the number of lanes and read ports without modifying the architecture ports.
+
+
+\subsection{Register space}
+
+SafeDM has only two registers that can be accessed through normal store and load operations.  
+
+The first register is used to reset SafeDM and start SafeDM operation:
+
+\begin{register}{H}{SafeDM configuration register}{0x00}
+	\label{cfg0}
+	\regfield{Reserved}{30}{2}{{0}}
+	\regfield{Enable}{1}{1}{{0}}
+	\regfield{Soft\_reset}{1}{0}{{0}}
+	\reglabel{Reset value}\regnewline
+\end{register}
+
+Once the enable bit is set to 1, SafeDM will start monitoring the diversity.
+
+The second register contains the number of cycles in which SafeDM detected lack of diversity.
+
+\begin{register}{H}{No-diversity cycles counter}{0x04}
+	\label{no_div_cycles_reg}
+	\regfield{No-diversity cycles}{32}{0}{{0}}
+	\reglabel{Reset value}\regnewline
+\end{register}
+
+To reset the count SafeDM has to be reset.
+
+
+\subsection{Resources}
+
+
+
+\hspace{2cm}
+
+
