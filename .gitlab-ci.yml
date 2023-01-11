@@ -1,0 +1,26 @@
+# ======= Default DOCKER IMAGE ===========
+image: localhost:5000/spyglass_centos8:latest
+# =========== ALL THE STAGES ===========
+# All the stages will be executed in this order
+stages:
+    - linting
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+before_script:
+  - git submodule sync --recursive
+  - git submodule update --init --recursive
+
+# =========== STAGE ===========
+#   - linting
+# =============================
+linting_spyglass:
+  image: localhost:5000/spyglass_centos8:latest
+  stage: linting
+  tags:
+  - spyglass
+  script:
+    - echo "lint_spyglass"
+    - make "docker_spyglass"    
+  allow_failure: false

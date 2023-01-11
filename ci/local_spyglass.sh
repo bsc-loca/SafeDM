@@ -38,6 +38,5 @@ sed -i '/Data Import Section/ r /tmp/SafeDM_top/importspy' ./$N.prj;
 sed -i '/Common Options Section/ r /tmp/SafeDM_top/optionsspy' ./$N.prj;
 export SKIP_PLATFORM_CHECK=TRUE
 echo -e "run_goal lint/lint_rtl\nexit -save\n"| spyglass_main -shell -project $N.prj;
-#echo -e "run_goal lint/lint_rtl\nexit -save\n"| /home/gcabo/scripts/runLintSV.sh -shell -project $N.prj;
 cd -
 cp -r /tmp/$N/$N ./
