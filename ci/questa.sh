@@ -4,8 +4,8 @@ GREEN='\033[7;32m'
 NC='\033[0m' # No Color
 
 #Name tmp files and VARS
-LOG="./questa.log"
-LOCAL_LOG="./lquesta.log"
+LOG=./questa.log
+LOCAL_LOG=./lquesta.log
 #Clear tmp files if any
 rm -f  $LOG
 

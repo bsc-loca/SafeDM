@@ -1,5 +1,5 @@
 # ======= Default DOCKER IMAGE ===========
-image: localhost:5000/spyglass_centos8:latest
+image: localhost:5000/spyglass_centos8
 # =========== ALL THE STAGES ===========
 # All the stages will be executed in this order
 stages:
@@ -20,7 +20,12 @@ linting_spyglass:
   image: localhost:5000/spyglass_centos8:latest
   stage: linting
   tags:
-  - spyglass
+    - spyglass
+  artifacts:
+    paths:
+      - ./ci/SafeDM_top/consolidated_reports/SafeDM_top_lint_lint_rtl/moresimple.rpt
+    when: always
+    expire_in: 30 days
   script:
     - echo "lint_spyglass"
     - make "docker_spyglass"    
